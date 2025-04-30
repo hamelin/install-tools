@@ -1,46 +1,46 @@
 SHELL = /bin/bash
-OUTPUT = out/$(1)
+OUTPUT = out
 PLATFORM = $(shell uname -s)-$(shell uname -m)
 VERSION = 20250428
 SIZE_HEADER = 6144
 
 MINICONDA = Miniconda3-latest-$(PLATFORM).sh
-MINICONDA_INSTALLER = $(call OUTPUT,$(MINICONDA))
+MINICONDA_INSTALLER = $(OUTPUT)/$(MINICONDA)
 CHANNELS = defaults conda-forge
 
-BOOTSTRAP = $(call OUTPUT,bootstrap/$(1))
-IN_BOOTSTRAP = source $(call BOOTSTRAP,bin/activate) && $(1)
+BOOTSTRAP = $(OUTPUT)/bootstrap
+IN_BOOTSTRAP = source $(BOOTSTRAP)/bin/activate
 PKGS_BOOTSTRAP = compilers constructor setuptools setuptools-rust wheel
 
-CONCRETIZE = $(call IN_BOOTSTRAP,python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1))
+CONCRETIZE = $(IN_BOOTSTRAP) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
 SUBDIR_INSTALL = timc-installer-${VERSION}
-GOODIE = $(call OUTPUT,$(SUBDIR_INSTALL)/$(1))
+GOODIE = $(OUTPUT)/$(SUBDIR_INSTALL)
 
-INSTALLER_BASE=$(call GOODIE,base-$(VERSION)-$(PLATFORM).sh)
-WHEEL=$(call GOODIE,wheels/$(1))
-WHEELS=$(call OUTPUT,wheels-gathered)
-INSTALLER=$(call OUTPUT,timc-installer-$(VERSION)-$(PLATFORM).sh)
-DOCKERIMAGE = $(call OUTPUT,docker-image-$(VERSION))
+INSTALLER_BASE=$(GOODIE)/base-$(VERSION)-$(PLATFORM).sh
+WHEEL=$(GOODIE)/wheels/$(1)
+WHEELS=$(OUTPUT)/wheels-gathered
+INSTALLER=$(OUTPUT)/timc-installer-$(VERSION)-$(PLATFORM).sh
+DOCKERIMAGE = $(OUTPUT)/docker-image-$(VERSION)
 TAG = timc
 
-GOODIES = $(INSTALLER_BASE) $(WHEELS) $(call GOODIE,requirements.txt) $(call GOODIE,startshell)
-GOODIES_GATHERED = $(call OUTPUT,goodies-gathered)
+GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/startshell
+GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
 
 # -------------------------------------------------------------------
 
 
 $(DOCKERIMAGE): $(INSTALLER) Dockerfile
-	docker build --build-arg version="$(VERSION)" --build-arg platform="$(PLATFORM)" --tag $(TAG) .
+	docker build --build-arg installer=$< --tag $(TAG):$(VERSION) .
 	touch $@
 
-$(INSTALLER): $(call OUTPUT,install.sh) $(GOODIES_GATHERED)
-	test -d $(call GOODIE,tmp) && rmdir $(call GOODIE,tmp) || true
-	cat $< <(cd $(call OUTPUT,) && tar cvf - $(SUBDIR_INSTALL)) >$@
+$(INSTALLER): $(OUTPUT)/install.sh $(GOODIES_GATHERED)
+	test -d $(GOODIE)/tmp && rmdir $(GOODIE)/tmp || true
+	cat $< <(cd $(OUTPUT) && tar cvf - $(SUBDIR_INSTALL)) >$@
 	chmod +x $@
 	test -f $@ -a $$(stat --format %s $@) -gt 1048576 || (rm -f $@ ; exit 1)
 
-$(call OUTPUT,install.sh): install.sh $(call BOOTSTRAP,ready)
+$(OUTPUT)/install.sh: install.sh $(BOOTSTRAP)/ready
 	test $$(stat --format="%s" $<) -lt $(SIZE_HEADER)
 	mkdir -p $(@D)
 	$(call CONCRETIZE,$<,$@)
@@ -49,32 +49,32 @@ $(call OUTPUT,install.sh): install.sh $(call BOOTSTRAP,ready)
 $(GOODIES_GATHERED): $(GOODIES)
 	touch $@
 	
-$(call GOODIE,requirements.txt): requirements.txt
+$(GOODIE)/requirements.txt: requirements.txt
 	mkdir -p $(@D)
 	cp $< $@
 
-$(call GOODIE,startshell): startshell
+$(GOODIE)/startshell: startshell
 	mkdir -p $(@D)
 	cp $< $@
 	
-$(WHEELS): requirements.txt $(call BOOTSTRAP,ready)
-	$(call IN_BOOTSTRAP,pip wheel --wheel-dir $(call WHEEL,) --no-cache-dir -r $<)
+$(WHEELS): requirements.txt $(BOOTSTRAP)/ready
+	$(IN_BOOTSTRAP) && pip wheel --wheel-dir $(WHEEL) --no-cache-dir -r $<
 	touch $@
 
-$(INSTALLER_BASE): $(call BOOTSTRAP,ready) $(call OUTPUT,construct.yaml)
+$(INSTALLER_BASE): $(BOOTSTRAP)/ready $(OUTPUT)/construct.yaml
 	mkdir -p $(@D)
-	$(call IN_BOOTSTRAP,constructor --output-dir $(@D) $(call OUTPUT,))
+	$(IN_BOOTSTRAP) && constructor --output-dir $(@D) $(OUTPUT)
 
-$(call OUTPUT,construct.yaml): construct.yaml
+$(OUTPUT)/construct.yaml: construct.yaml
 	$(call CONCRETIZE,$<,$@)
 
-$(call BOOTSTRAP,ready): $(call BOOTSTRAP,deployed)
-	$(call IN_BOOTSTRAP,conda install --override-channels $(foreach ch,$(CHANNELS),--channel $(ch)) --yes $(PKGS_BOOTSTRAP))
+$(BOOTSTRAP)/ready: $(BOOTSTRAP)/deployed
+	$(IN_BOOTSTRAP) && conda install --override-channels $(foreach ch,$(CHANNELS),--channel $(ch)) --yes $(PKGS_BOOTSTRAP)
 	touch $@
 
-$(call BOOTSTRAP,deployed):
+$(BOOTSTRAP)/deployed:
 	$(MAKE) $(MINICONDA_INSTALLER)
-	bash $(MINICONDA_INSTALLER) -bf -p $(call BOOTSTRAP,)
+	bash $(MINICONDA_INSTALLER) -bf -p $(BOOTSTRAP)
 	touch $< $@
 	rm $(MINICONDA_INSTALLER)
 
@@ -82,6 +82,9 @@ $(MINICONDA_INSTALLER):
 	mkdir -p $(dir $@)
 	curl -o $(MINICONDA_INSTALLER) https://repo.anaconda.com/miniconda/$(MINICONDA)
 
-clean:
-	test -d $(call BOOTSTRAP,) && $(call IN_BOOTSTRAP,constructor --clean) || exit 0
-	rm -rf $(call OUTPUT,)
+cleanimage:
+	docker image rm $(TAG):$(VERSION)
+
+clean: cleanimage
+	test -d $(BOOTSTRAP) && $(IN_BOOTSTRAP) && constructor --clean || exit 0
+	rm -rf $(OUTPUT)
