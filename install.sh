@@ -163,7 +163,7 @@ ERRMSG
     rm -rf "$path_install" || true
     bash "$dir_installer/base-$version-$platform.sh" -b -p "$path_install" -f
     cp "$dir_installer/startshell" "$path_install/bin/startshell"
-    "$path_install/bin/startshell" <<-SETUP
+    "$path_install/bin/startshell" -- <<-SETUP
     set -x
     pip install --no-index --find-links "$dir_installer/wheels" -r "$dir_installer/requirements.txt"
 SETUP

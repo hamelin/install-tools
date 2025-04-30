@@ -8,9 +8,6 @@ MINICONDA = Miniconda3-latest-$(PLATFORM).sh
 MINICONDA_INSTALLER = $(call OUTPUT,$(MINICONDA))
 CHANNELS = defaults conda-forge
 
-DOCKERIMAGE = $(call OUTPUT,docker-image-$(VERSION))
-INSTALLER = $(call OUTPUT,timc-installer-$(VERSION).sh)
-
 BOOTSTRAP = $(call OUTPUT,bootstrap/$(1))
 IN_BOOTSTRAP = source $(call BOOTSTRAP,bin/activate) && $(1)
 PKGS_BOOTSTRAP = compilers constructor setuptools setuptools-rust wheel
@@ -23,13 +20,19 @@ INSTALLER_BASE=$(call GOODIE,base-$(VERSION)-$(PLATFORM).sh)
 WHEEL=$(call GOODIE,wheels/$(1))
 WHEELS=$(call OUTPUT,wheels-gathered)
 INSTALLER=$(call OUTPUT,timc-installer-$(VERSION)-$(PLATFORM).sh)
+DOCKERIMAGE = $(call OUTPUT,docker-image-$(VERSION))
+TAG = timc
 
 GOODIES = $(INSTALLER_BASE) $(WHEELS) $(call GOODIE,requirements.txt) $(call GOODIE,startshell)
 GOODIES_GATHERED = $(call OUTPUT,goodies-gathered)
 
-# $(DOCKERIMAGE): $(INSTALLER)
-	# echo 'not yet implemented'
-	# exit 1
+
+# -------------------------------------------------------------------
+
+
+$(DOCKERIMAGE): $(INSTALLER) Dockerfile
+	docker build --build-arg version="$(VERSION)" --build-arg platform="$(PLATFORM)" --tag $(TAG) .
+	touch $@
 
 $(INSTALLER): $(call OUTPUT,install.sh) $(GOODIES_GATHERED)
 	test -d $(call GOODIE,tmp) && rmdir $(call GOODIE,tmp) || true
