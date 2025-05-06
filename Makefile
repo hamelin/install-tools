@@ -3,15 +3,11 @@ include config.mk
 MINICONDA = Miniconda3-latest-$(PLATFORM).sh
 DIR_MINICONDA = miniconda
 MINICONDA_INSTALLER = $(DIR_MINICONDA)/$(MINICONDA)
-# CHANNELS = defaults conda-forge
 
 BASE = $(OUTPUT)/base
 CONSTRUCTOR = $(BASE)
 BOOTSTRAP = $(OUTPUT)/bootstrap
 IN_ENV = source $(BASE)/bin/activate && conda activate $(1)
-# IN_BASE = source $(BASE)/bin/activate
-# IN_BOOTSTRAP = source $(BOOTSTRAP)/bin/activate
-# PKGS_BOOTSTRAP = compilers constructor setuptools setuptools-rust wheel
 
 CONCRETIZE = $(call IN_ENV,base) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), python_version="$(PYTHON_VERSION)", dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
 SUBDIR_INSTALL = timc-installer-${VERSION}
