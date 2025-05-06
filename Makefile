@@ -10,15 +10,15 @@ BOOTSTRAP = $(OUTPUT)/bootstrap
 IN_ENV = source $(BASE)/bin/activate && conda activate $(1)
 
 CONCRETIZE = $(call IN_ENV,base) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), python_version="$(PYTHON_VERSION)", dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
-SUBDIR_INSTALL = timc-installer-${VERSION}
+SUBDIR_INSTALL = timc-installer-py$(PYTHON_VERSION)-${VERSION}
 GOODIE = $(OUTPUT)/$(SUBDIR_INSTALL)
 
 INSTALLER_BASE=$(GOODIE)/base-$(VERSION)-$(PLATFORM).sh
 WHEEL=$(GOODIE)/wheels/$(1)
 WHEELS=$(OUTPUT)/wheels-gathered
-INSTALLER=$(OUTPUT)/timc-installer-$(VERSION)-$(PLATFORM).sh
+INSTALLER=$(OUTPUT)/timc-installer-$(VERSION)-py$(PYTHON_VERSION)-$(PLATFORM).sh
 DOCKERIMAGE = $(OUTPUT)/docker-image-$(VERSION)
-TAG = timc
+TAG = data-exploration:$(VERSION)-py$(PYTHON_VERSION)
 
 GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/startshell
 GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
@@ -28,8 +28,11 @@ GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
 
 $(DOCKERIMAGE): $(INSTALLER) Dockerfile
-	docker build --build-arg installer=$< --tag $(TAG):$(VERSION) .
+	docker build --build-arg installer=$< --tag $(TAG) .
 	touch $@
+
+.PHONY: installer
+installer: $(INSTALLER)
 
 $(INSTALLER): $(OUTPUT)/install.sh $(GOODIES_GATHERED)
 	test -d $(GOODIE)/tmp && rmdir $(GOODIE)/tmp || true
@@ -70,7 +73,7 @@ $(BOOTSTRAP)/ready: $(OUTPUT)/bootstrap.yaml $(BASE)/ready
 	$(call IN_ENV,base) && conda env create --prefix $(@D) --file $< --yes
 	touch $@
 
-$(OUTPUT)/bootstrap.yaml: bootstrap.yaml config.mk
+$(OUTPUT)/bootstrap.yaml: bootstrap.yaml config.mk $(BASE)/ready
 	mkdir -p $(@D)
 	$(call CONCRETIZE,$<,$@)
 
@@ -84,7 +87,7 @@ $(MINICONDA_INSTALLER):
 	curl -o $@ https://repo.anaconda.com/miniconda/$(MINICONDA) && chmod +x $@ || rm $@
 
 cleanimage:
-	docker image rm $(TAG):$(VERSION) || true
+	docker image rm $(TAG) || true
 
 clean: cleanimage
 	test -d $(CONSTRUCTOR) && $(call IN_ENV,$(CONSTRUCTOR)) && constructor --clean || exit 0
