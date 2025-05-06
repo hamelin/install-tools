@@ -1,18 +1,19 @@
-SHELL = /bin/bash
-OUTPUT = out
-PLATFORM = $(shell uname -s)-$(shell uname -m)
-VERSION = 20250428
-SIZE_HEADER = 6144
+include config.mk
 
 MINICONDA = Miniconda3-latest-$(PLATFORM).sh
-MINICONDA_INSTALLER = $(OUTPUT)/$(MINICONDA)
-CHANNELS = defaults conda-forge
+DIR_MINICONDA = miniconda
+MINICONDA_INSTALLER = $(DIR_MINICONDA)/$(MINICONDA)
+# CHANNELS = defaults conda-forge
 
+BASE = $(OUTPUT)/base
+CONSTRUCTOR = $(BASE)
 BOOTSTRAP = $(OUTPUT)/bootstrap
-IN_BOOTSTRAP = source $(BOOTSTRAP)/bin/activate
-PKGS_BOOTSTRAP = compilers constructor setuptools setuptools-rust wheel
+IN_ENV = source $(BASE)/bin/activate && conda activate $(1)
+# IN_BASE = source $(BASE)/bin/activate
+# IN_BOOTSTRAP = source $(BOOTSTRAP)/bin/activate
+# PKGS_BOOTSTRAP = compilers constructor setuptools setuptools-rust wheel
 
-CONCRETIZE = $(IN_BOOTSTRAP) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
+CONCRETIZE = $(call IN_ENV,base) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), python_version="$(PYTHON_VERSION)", dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
 SUBDIR_INSTALL = timc-installer-${VERSION}
 GOODIE = $(OUTPUT)/$(SUBDIR_INSTALL)
 
@@ -40,7 +41,7 @@ $(INSTALLER): $(OUTPUT)/install.sh $(GOODIES_GATHERED)
 	chmod +x $@
 	test -f $@ -a $$(stat --format %s $@) -gt 1048576 || (rm -f $@ ; exit 1)
 
-$(OUTPUT)/install.sh: install.sh $(BOOTSTRAP)/ready
+$(OUTPUT)/install.sh: install.sh $(BOOTSTRAP)/ready config.mk
 	test $$(stat --format="%s" $<) -lt $(SIZE_HEADER)
 	mkdir -p $(@D)
 	$(call CONCRETIZE,$<,$@)
@@ -58,33 +59,40 @@ $(GOODIE)/startshell: startshell
 	cp $< $@
 	
 $(WHEELS): requirements.txt $(BOOTSTRAP)/ready
-	$(IN_BOOTSTRAP) && pip wheel --wheel-dir $(WHEEL) --no-cache-dir -r $<
+	$(call IN_ENV,$(BOOTSTRAP)) && pip wheel --wheel-dir $(WHEEL) --no-cache-dir -r $<
 	touch $@
 
-$(INSTALLER_BASE): $(BOOTSTRAP)/ready $(OUTPUT)/construct.yaml
+$(INSTALLER_BASE): $(OUTPUT)/construct.yaml $(BASE)/ready
 	mkdir -p $(@D)
-	$(IN_BOOTSTRAP) && constructor --output-dir $(@D) $(OUTPUT)
+	$(call IN_ENV,$(CONSTRUCTOR)) && constructor --output-dir $(@D) $(<D)
 
-$(OUTPUT)/construct.yaml: construct.yaml
+$(OUTPUT)/construct.yaml: construct.yaml $(CONSTRUCTOR)/ready config.mk
+	mkdir -p $(@D)
 	$(call CONCRETIZE,$<,$@)
 
-$(BOOTSTRAP)/ready: $(BOOTSTRAP)/deployed
-	$(IN_BOOTSTRAP) && conda install --override-channels $(foreach ch,$(CHANNELS),--channel $(ch)) --yes $(PKGS_BOOTSTRAP)
+$(BOOTSTRAP)/ready: $(OUTPUT)/bootstrap.yaml $(BASE)/ready
+	$(call IN_ENV,base) && conda env create --prefix $(@D) --file $< --yes
 	touch $@
 
-$(BOOTSTRAP)/deployed:
-	$(MAKE) $(MINICONDA_INSTALLER)
-	bash $(MINICONDA_INSTALLER) -bf -p $(BOOTSTRAP)
-	touch $< $@
-	rm $(MINICONDA_INSTALLER)
+$(OUTPUT)/bootstrap.yaml: bootstrap.yaml config.mk
+	mkdir -p $(@D)
+	$(call CONCRETIZE,$<,$@)
+
+$(BASE)/ready: $(MINICONDA_INSTALLER)
+	./$(MINICONDA_INSTALLER) -bf -p $(@D)
+	$(call IN_ENV,base) && conda install --override-channels --channel defaults --yes constructor
+	touch $@
 
 $(MINICONDA_INSTALLER):
-	mkdir -p $(dir $@)
-	curl -o $(MINICONDA_INSTALLER) https://repo.anaconda.com/miniconda/$(MINICONDA)
+	mkdir -p $(@D)
+	curl -o $@ https://repo.anaconda.com/miniconda/$(MINICONDA) && chmod +x $@ || rm $@
 
 cleanimage:
-	docker image rm $(TAG):$(VERSION)
+	docker image rm $(TAG):$(VERSION) || true
 
 clean: cleanimage
-	test -d $(BOOTSTRAP) && $(IN_BOOTSTRAP) && constructor --clean || exit 0
+	test -d $(CONSTRUCTOR) && $(call IN_ENV,$(CONSTRUCTOR)) && constructor --clean || exit 0
 	rm -rf $(OUTPUT)
+
+veryclean: clean
+	rm -rf $(DIR_MINICONDA)

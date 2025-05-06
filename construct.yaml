@@ -8,7 +8,7 @@ specs:
   - numpy
   - pandas
   - pip
-  - python<3.13
+  - python={python_version}
   - scikit-learn
   - scipy
   - setuptools
