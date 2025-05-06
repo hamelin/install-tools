@@ -20,10 +20,12 @@ Options:
     -p path
         Sets the path to the directory where to set up the computing environment,
         or where such an environment has been previously set up. Do not use -n if you
-        use -p. By default, this is $path_install
+        use -p.
     -q
         Skips any interactive confirmation, proceeding with the default answer.
 
+Without any of the -n or -p options, the installer simply deploys the Tutte Institute
+tools in the current Conda environment or Python virtual environment (venv).
 HELP
     exit 0
 }}
@@ -43,7 +45,7 @@ function die_no_environment() {{
 
 
 name_env=""
-path_install="$HOME/timc-{version}"
+path_install="."
 version="{version}"
 platform="{platform}"
 dir_installer="{dir_installer}"
@@ -111,20 +113,31 @@ NOCONDA
         exit 4
     fi
 fi
-if ! grep -q '^/' <<<"$path_install"; then
-    path_install="./$path_install"
-fi
 
 shift $((OPTIND - 1))
 [ "$1" = "--help" ] && exit_help
 
 must_install=""
 prompt=""
-if [ ! -d "$path_install" ]; then
-    must_install="yes"
-    prompt="About to install in new directory $path_install. Proceed?"
+if [ "$path_install" = "." ]; then
+    if [ -n "$VIRTUAL_ENV" -o -n "$CONDA_DEFAULT_ENV" ]; then
+        if ! command -v dmp_offline_cache >/dev/null; then
+            must_install="pip"
+            if [ -n "$VIRTUAL_ENV" ]; then
+                prompt="About to install the tools in the current venv ($VIRTUAL_ENV). Proceed?"
+            elif [ -n "$CONDA_DEFAULT_ENV" ]; then
+                prompt="About to install the tools in the current Conda environment ($CONDA_DEFAULT_ENV). Proceed?"
+            else
+                echo "Incoherent venv/Conda env settings detected. Use the -p or -n option."
+                exit 7
+            fi
+        fi
+    fi
+elif [ ! -d "$path_install" ]; then
+    must_install="conda+pip"
+    prompt="About to install Python and Tutte Institute tools in new directory $path_install. Proceed?"
 elif [ ! -f "$path_install/bin/activate" -o ! -f "$path_install/bin/dmp_offline_cache" ]; then
-    must_install="yes"
+    must_install="conda pip"
     prompt="Environment at $path_install seems to lack some critical components. Reinstall?"
 fi
 if [ -n "$interactive" -a -n "$prompt" ]; then
@@ -146,7 +159,7 @@ if [ -n "$interactive" -a -n "$prompt" ]; then
     esac
 fi
 
-if [ "$must_install" = "yes" ]; then
+if [ -n "$must_install" ]; then
     if [ -d "$dir_installer" ]; then
         cat <<-ERRMSG
 This installer uses local subdirectory $dir_installer as a temporary
@@ -157,19 +170,24 @@ this installer; until then we abort the install process.
 ERRMSG
         exit 3
     fi
-    echo "--- Setting up the computing environment ---"
-    tail -c +{after_header} "$0" | tar xf -
+    echo "--- Extracting installation components ---"
     trap "rm -rf $dir_installer" EXIT
-    rm -rf "$path_install" || true
-    bash "$dir_installer/base-$version-$platform.sh" -b -p "$path_install" -f
-    cp "$dir_installer/startshell" "$path_install/bin/startshell"
-    "$path_install/bin/startshell" -- <<-SETUP
-    set -x
-    pip install --no-index --find-links "$dir_installer/wheels" -r "$dir_installer/requirements.txt"
+    tail -c +{after_header} "$0" | tar xf -
+    pip_cmd="pip install --no-index --find-links \"$dir_installer/wheels\" -r \"$dir_installer/requirements.txt\""
+    if grep -q 'conda' <<<"$must_install"; then
+        echo "--- Set up the base for a Python computing environment ---"
+        rm -rf "$path_install" || true
+        bash "$dir_installer/base-$version-$platform.sh" -b -p "$path_install" -f
+        cp "$dir_installer/startshell" "$path_install/bin/startshell"
+        echo "--- Install Tutte Institute tools ---"
+        "$path_install/bin/startshell" -- <<-SETUP
+        eval $pip_cmd
 SETUP
-    echo "--- Environment setup in $path_install successful ---"
-else
-    source "$path_install/bin/activate" "$path_install"
+    else
+    echo "--- Install Tutte Institute tools in situ ---"
+        eval $pip_cmd
+    fi
+    echo "--- Environment setup is successful ---"
 fi
 
 exit 0
