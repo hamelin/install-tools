@@ -17,8 +17,6 @@ INSTALLER_BASE=$(GOODIE)/base-$(VERSION)-$(PLATFORM).sh
 WHEEL=$(GOODIE)/wheels/$(1)
 WHEELS=$(OUTPUT)/wheels-gathered
 INSTALLER=$(OUTPUT)/timc-installer-$(VERSION)-py$(PYTHON_VERSION)-$(PLATFORM).sh
-DOCKERIMAGE = $(OUTPUT)/docker-image-$(VERSION)
-TAG = data-exploration:$(VERSION)-py$(PYTHON_VERSION)
 
 GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/startshell
 GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
@@ -26,10 +24,6 @@ GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
 # -------------------------------------------------------------------
 
-
-$(DOCKERIMAGE): $(INSTALLER) Dockerfile
-	docker build --build-arg installer=$< --tag $(TAG) .
-	touch $@
 
 .PHONY: installer
 installer: $(INSTALLER)
@@ -86,10 +80,7 @@ $(MINICONDA_INSTALLER):
 	mkdir -p $(@D)
 	curl -o $@ https://repo.anaconda.com/miniconda/$(MINICONDA) && chmod +x $@ || rm $@
 
-cleanimage:
-	docker image rm $(TAG) || true
-
-clean: cleanimage
+clean:
 	test -d $(CONSTRUCTOR) && $(call IN_ENV,$(CONSTRUCTOR)) && constructor --clean || exit 0
 	rm -rf $(OUTPUT)
 
