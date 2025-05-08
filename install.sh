@@ -188,6 +188,16 @@ ERRMSG
 SETUP
     else
     echo "--- Install Tutte Institute tools in situ ---"
+        python_version_here="$(python -c 'import sys; print(f"{{sys.version_info.major}}.{{sys.version_info.minor}}")')"
+        if [ "$python_version_here" != "{python_version}" ]; then
+            $msg <<-WRONGPYTHON
+The Python wheels included in this package were compiled for Python {python_version},
+but the Python version deployed in this environment is $python_version_here. Therefore,
+these wheels cannot be deployed as requested. Use option -p in order to deploy a distinct
+Python distribution with which the wheels included herein can be used.
+WRONGPYTHON
+            exit 9
+        fi
         eval $pip_cmd
     fi
     echo "--- Environment setup is successful ---"
