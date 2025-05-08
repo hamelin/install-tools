@@ -2,14 +2,17 @@
 set -e
 
 
+msg=$(command -v fmt || echo cat)
+
+
 function exit_help() {{
-    cat <<HELP
+    $msg <<-HELP
 This self-contained script sets up a Python computing environment that includes
 common data science and data engineering tools, as well as the libraries developed
 by the Tutte Institute for unsupervised learning and data exploration.
 
 Usage:
-    $0 [-h|--help] [-p path]
+    $0 [-h|--help] [-n name] [-p path] [-q]
 
 Options:
     -h, --help
@@ -98,7 +101,7 @@ if [ -n "$name_env" ]; then
     if command -v conda >/dev/null && [ -n "$CONDA_DEFAULT_ENV$CONDA_PREFIX" ]; then
         dir_candidate="$(conda info --json | python -c 'import json, os, sys; print(next(p for p in json.load(sys.stdin)["envs_dirs"] if os.path.isdir(p) and os.access(p, os.W_OK)))')"
         if [ -z "$dir_candidate" ]; then
-            cat <<-NOENVSDIRS
+            $msg <<-NOENVSDIRS
 Cannot get Conda to reveal where the user can write its environments.
 Use option -p instead.
 NOENVSDIRS
@@ -106,7 +109,7 @@ NOENVSDIRS
         fi
         path_install="$dir_candidate/$name_env"
     else
-        cat <<-NOCONDA
+        $msg <<-NOCONDA
 You specified the -n option, but you don't have Conda, or it is improperly set up for
 your shell. Get your Conda in order or use the -p option instead.
 NOCONDA
@@ -161,7 +164,7 @@ fi
 
 if [ -n "$must_install" ]; then
     if [ -d "$dir_installer" ]; then
-        cat <<-ERRMSG
+        $msg <<-ERRMSG
 This installer uses local subdirectory $dir_installer as a temporary
 place to store intermediate files critical to the installation process.
 It assumes this directory would not exist when it runs, but as it were,
