@@ -9,7 +9,7 @@ CONSTRUCTOR = $(BASE)
 BOOTSTRAP = $(OUTPUT)/bootstrap
 IN_ENV = source $(BASE)/bin/activate && conda activate $(1)
 
-CONCRETIZE = $(call IN_ENV,base) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), python_version="$(PYTHON_VERSION)", dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
+CONCRETIZE = mkdir -p $(dir $(2)) && $(call IN_ENV,base) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), python_version="$(PYTHON_VERSION)", dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
 SUBDIR_INSTALL = timc-installer-py$(PYTHON_VERSION)-${VERSION}
 GOODIE = $(OUTPUT)/$(SUBDIR_INSTALL)
 
@@ -24,6 +24,32 @@ GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
 # -------------------------------------------------------------------
 
+
+.PHONY: dockerimages
+dockerimages:
+	docker build . \
+		--target data-exploration \
+		--tag $(call TAG,data-exploration,$(VERSION)) \
+		--build-arg IMAGE_BASE=$(IMAGE_BASE) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg PYTHON_VERSION=$(PYTHON_VERSION)
+	docker tag $(call TAG,data-exploration,$(VERSION)) $(call TAG,data-exploration,latest)
+	docker build . \
+		--target data-science \
+		--tag $(call TAG,data-science,$(VERSION)) \
+		--build-arg IMAGE_BASE=$(IMAGE_BASE) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg PYTHON_VERSION=$(PYTHON_VERSION)
+	docker tag $(call TAG,data-science,$(VERSION)) $(call TAG,data-science,latest)
+
+.PHONY: dockerpush
+dockerpush: dockerimages
+	docker push --all-tags $(call TAG,data-exploration,)
+	docker push --all-tags $(call TAG,data-science,)
+
+.PHONY: dockerclean
+dockerclean:
+	docker images --format '{{.Repository}}:{{.Tag}}' | grep '$(call TAG,,)' | xargs --max-args=1 --no-run-if-empty docker image rm
 
 .PHONY: installer
 installer: $(INSTALLER)
