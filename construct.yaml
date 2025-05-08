@@ -8,6 +8,7 @@ specs:
   - numpy
   - pandas
   - pip
+  - pyarrow
   - python={python_version}
   - scikit-learn
   - scipy
