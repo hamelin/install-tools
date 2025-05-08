@@ -44,7 +44,7 @@ build/%:
 .PHONY: dockerpush
 dockerpush: $(foreach image,$(IMAGES),push/$(image))
 
-push/%:
+push/%: build/%
 	docker push --all-tags $(call TAG,$(@F),)
 
 .PHONY: dockerclean
