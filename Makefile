@@ -24,6 +24,8 @@ GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
 # -------------------------------------------------------------------
 
+.PHONY: all
+all: installer dockerimages
 
 .PHONY: dockerimages
 dockerimages:
