@@ -21,6 +21,8 @@ INSTALLER=$(OUTPUT)/timc-installer-$(VERSION)-py$(PYTHON_VERSION)-$(PLATFORM).sh
 GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/startshell
 GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
+IMAGES = data-exploration data-science
+
 
 # -------------------------------------------------------------------
 
@@ -28,26 +30,22 @@ GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 all: installer dockerimages
 
 .PHONY: dockerimages
-dockerimages:
+dockerimages: $(foreach image,$(IMAGES),build/$(image))
+
+build/%:
 	docker build . \
-		--target data-exploration \
-		--tag $(call TAG,data-exploration,$(VERSION)) \
+		--target $(@F) \
+		--tag $(call TAG,$(@F),$(VERSION)) \
 		--build-arg IMAGE_BASE=$(IMAGE_BASE) \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg PYTHON_VERSION=$(PYTHON_VERSION)
-	docker tag $(call TAG,data-exploration,$(VERSION)) $(call TAG,data-exploration,latest)
-	docker build . \
-		--target data-science \
-		--tag $(call TAG,data-science,$(VERSION)) \
-		--build-arg IMAGE_BASE=$(IMAGE_BASE) \
-		--build-arg VERSION=$(VERSION) \
-		--build-arg PYTHON_VERSION=$(PYTHON_VERSION)
-	docker tag $(call TAG,data-science,$(VERSION)) $(call TAG,data-science,latest)
+	docker tag $(call TAG,$(@F),$(VERSION)) $(call TAG,$(@F),latest)
 
 .PHONY: dockerpush
-dockerpush: dockerimages
-	docker push --all-tags $(call TAG,data-exploration,)
-	docker push --all-tags $(call TAG,data-science,)
+dockerpush: $(foreach image,$(IMAGES),push/$(image))
+
+push/%:
+	docker push --all-tags $(call TAG,$(@F),)
 
 .PHONY: dockerclean
 dockerclean:
