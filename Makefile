@@ -71,7 +71,7 @@ $(OUTPUT)/install.sh: install.sh $(BOOTSTRAP)/ready config.mk
 $(GOODIES_GATHERED): $(GOODIES)
 	touch $@
 	
-$(GOODIE)/requirements.txt: requirements.txt
+$(GOODIE)/requirements.txt: exploration.txt
 	mkdir -p $(@D)
 	cp $< $@
 
@@ -79,7 +79,7 @@ $(GOODIE)/startshell: startshell
 	mkdir -p $(@D)
 	cp $< $@
 	
-$(WHEELS): requirements.txt $(BOOTSTRAP)/ready
+$(WHEELS): exploration.txt $(BOOTSTRAP)/ready
 	$(call IN_ENV,$(BOOTSTRAP)) && pip wheel --wheel-dir $(WHEEL) --no-cache-dir -r $<
 	touch $@
 

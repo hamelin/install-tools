@@ -14,7 +14,7 @@ ARG VERSION
 ARG PYTHON_VERSION
 RUN source /home/user/miniconda3/bin/activate /home/user/miniconda3 \
     && conda create --yes --prefix /home/user/timc python=${PYTHON_VERSION} pip numpy scipy scikit-learn setuptools setuptools-rust wheel conda-forge::compilers
-ADD --chown=user requirements.txt requirements.txt
+ADD --chown=user exploration.txt requirements.txt
 RUN source /home/user/miniconda3/bin/activate /home/user/miniconda3 \
     && conda activate /home/user/timc \
     && pip install -r requirements.txt \
