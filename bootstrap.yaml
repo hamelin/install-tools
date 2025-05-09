@@ -1,0 +1,12 @@
+name: bootstrap
+channels:
+  - nodefaults
+  - defaults
+  - conda-forge
+dependencies:
+  - compilers
+  - pip
+  - python={python_version}
+  - setuptools
+  - setuptools-rust
+  - wheel

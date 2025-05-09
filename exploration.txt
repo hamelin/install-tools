@@ -1,0 +1,11 @@
+datamapplot
+einops
+evoc
+fast-hdbscan
+glasbey
+hdbscan
+ipykernel
+tqdm
+toponymy
+umap-learn[plot]
+vectorizers
