@@ -40,7 +40,7 @@ that the data scientists of the Tutte Institute use in their day-to-day research
 
 ### Requirements
 
-1. Access to the Internet (or to a PyPI mirror for using which `pip` is [duly](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-i)[configured](https://pip.pypa.io/en/stable/topics/configuration/))
+1. Access to the Internet (or to a PyPI mirror for using which `pip` is [duly](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-i) [configured](https://pip.pypa.io/en/stable/topics/configuration/))
 1. A C/C++ compilation toolchain
 
 ### Examples
