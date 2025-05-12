@@ -38,13 +38,14 @@ this repository also provides another requirements file named [`science.txt`](ht
 This one complements `exploration.txt` with further libraries and tools
 that the data scientists of the Tutte Institute use in their day-to-day research and data analysis work.
 
-**Requirements**
+### Requirements
 
 1. Access to the Internet (or to a PyPI mirror for using which `pip` is [duly](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-i)[configured](https://pip.pypa.io/en/stable/topics/configuration/))
 1. A C/C++ compilation toolchain
 
-**Examples**
+### Examples
 
+<a id="venv"></a>
 Using a [Python virtual environment](https://docs.python.org/3/library/venv.html)
 on a modern UNIX (GNU/Linux, *BSD, MacOS and so on) host and a Bourne-compatible interactive shell (Bash or Zsh).
 In this case,
@@ -93,13 +94,13 @@ so that distinct host users
 (determined through the `-u/--user` option of `docker run`)
 can change the Python distribution as they wish.
 
-**Requirements**
+### Requirements
 
 1. Ability to run [Docker](https://www.docker.com/)
 1. Either access to [Docker Hub](https://hub.docker.com/) on the Internet, or have configuration to access an image repository index that mirrors the Tutte Institute images
 
 
-**Examples**
+### Examples
 
 Run Marimo on a notebook directory mounted to a container.
 
@@ -129,3 +130,110 @@ Build the new image and run the container:
 docker build --tag myapp .
 docker run --rm --publish 5000:5000 myapp
 ```
+
+
+## Deploying on modern UNIX hosts in an air-gapped network
+
+This repository comprises tools to build a self-contained Bash script that deploys a full Python distribution.
+This distribution includes the tools enumerated in [`exploration.txt`](exploration.txt) and their dependency tree.
+
+### Requirements
+
+1. Either a GLibC-based GNU/Linux system **OR** a MacOS system
+    * If you don't know whether your GNU/Linux system is based on GLibC, it likely is. The requirement enables using [Conda](https://learn.microsoft.com/en-us/windows/wsl/about). GNU/Linux distributions known not work are those based on [musl libc](https://musl.libc.org/), including [Alpine Linux](https://alpinelinux.org/).
+1. Common UNIX utilities (such as included in [GNU Coreutils](https://www.gnu.org/software/coreutils/))
+1. [GNU Make](https://www.gnu.org/software/make/)
+1. For the installer build step, full Internet access is expected.
+
+Remark that the installation building and deployment tools have only been tested on
+Ubuntu Linux, MacOS and [WSL2/Ubuntu](https://learn.microsoft.com/en-us/windows/wsl/about) systems running on Intel x86-64 hardware.
+Other GLibC-based Linux systems are supported on Intel x86-64 hardware;
+alternative hardware platforms ARM64 (aarch64), IBM S390 and PowerPC 64 LE are likely to work, but are not supported.
+Idem for 32-bits hardware platforms x86 and ARM7.
+Finally, it sounds possible to make the tools work on non-WSL Windows,
+but it has not been tested by the author and it is not supported.
+\*BSD platforms are also excluded from support,
+as no [Conda binary](https://repo.anaconda.com/miniconda/) is being distributed for them.
+
+### Usage
+
+Having cloned this repository, `cd` into your local copy and invoke
+
+```sh
+make
+```
+
+Provided everything works smoothly, you end up with a (quite large!) installation Bash script at path
+
+```
+out/timc-installer-<VERSION>-py<PYTHON VERSION>-<SYSTEM NAME>-<HARDWARE PLATFORM>.sh
+```
+
+The **SYSTEM NAME** and **HARDWARE PLATFORM** are determined by the system the installer is built on.
+Thus, it is not possible to cross-build a MacOS installer on a GNU/Linux-x86_64 host.
+However, one can change the Python version to another one they would rather target by editing file `config.mk`.
+Change the line of the form
+
+```
+PYTHON_VERSION = 3.13
+```
+
+for an alternative value.
+Please remark that,
+as a whole,
+the Tutte Institute tools are targeted to the minimum Python 3.9 version.
+Anything lower is not supported.
+In addition, the top supported Python version,
+at any moment,
+is the default value of `PYTHON_VERSION` in file `config.mk` on the `main` branch of this repository.
+
+Bring this script over to each host of the air-gapped network where you mean to run the installer
+(a shared network filesystem such as NFS works as well).
+It can be run by any unprivileged user or as root,
+enabling further downstream customization of the Python distribution and environment
+(assuming the air-gapped network includes a [simple package repository](https://peps.python.org/pep-0503/)
+or some other distribution infrastructure).
+Using the `-h` flag shows some terse documentation:
+
+```
+This self-contained script sets up a Python computing environment that
+includes common data science and data engineering tools, as well as the
+libraries developed by the Tutte Institute for unsupervised learning
+and data exploration.
+
+Usage:
+    ./out/timc-installer-20250508-py3.13-Linux-x86_64.sh [-h|--help]
+    [-n name] [-p path] [-q]
+
+Options:
+    -h, --help
+        Prints out this help and exits.
+    -n name
+        If the system has Conda set up, these tools will be installed
+        as the named Conda environment. Do not use -p if you use -n.
+    -p path
+        Sets the path to the directory where to set up the computing
+        environment, or where such an environment has been previously
+        set up. Do not use -n if you use -p.
+    -q
+        Skips any interactive confirmation, proceeding with the default
+        answer.
+
+Without any of the -n or -p options, the installer simply deploys the
+Tutte Institute tools in the current Conda environment or Python virtual
+environment (venv).
+```
+
+There are three ways in which the installation can be run.
+
+1. The most complete approach deploys the full Python distribution, over which it lays out the packages from [`exploration.txt`](exploration.txt), in a named directory. For this, use option `-p PATH-WHERE-TO-INSTALL`.
+1. If [Conda](https://docs.conda.io/en/latest/) is also deployed on the host, the path can be chosen so that the distribution is deployed in a named Conda environment. For this, use option `-n DESIRED-ENVIRONMENT-NAME`.
+    - Remark that if the host has Conda, it will still see the Python distribution deployed using `-p` as an environment, but not an environment with a *name* unless the path is a child of a directory listed under `envs_dirs` (check `conda config --show envs_dirs`).
+1. If one would like to use a Python distribution that is already deployed on the system, one can create and activate a [virtual environment](#venv), then run the installer _without_ any of the options `-n` or `-p`. This will `pip`-install the wheels corresponding to the Tutte Institute tools and their dependencies _in the currently active environment_.
+
+Finally, installation tasks are, by default, confirmed interactively in the shell.
+To bypass this confirmation and just carry on in any case, use option `-q`.
+
+### Installer customization
+
+**TBD**
