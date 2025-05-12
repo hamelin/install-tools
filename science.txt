@@ -17,7 +17,7 @@ pandas
 pyarrow
 python-dotenv
 python-igraph
-scikit-network
+#scikit-network
 seaborn
 xgi
 zstandard
