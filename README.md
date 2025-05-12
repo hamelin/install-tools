@@ -142,8 +142,12 @@ This distribution includes the tools enumerated in [`exploration.txt`](explorati
 1. Either a GLibC-based GNU/Linux system **OR** a MacOS system
     * If you don't know whether your GNU/Linux system is based on GLibC, it likely is. The requirement enables using [Conda](https://learn.microsoft.com/en-us/windows/wsl/about). GNU/Linux distributions known not work are those based on [musl libc](https://musl.libc.org/), including [Alpine Linux](https://alpinelinux.org/).
 1. Common UNIX utilities (such as included in [GNU Coreutils](https://www.gnu.org/software/coreutils/))
-1. [GNU Make](https://www.gnu.org/software/make/)
-1. For the installer build step, full Internet access is expected.
+
+For the installer build step, these extra requirements should also be met:
+
+3. [GNU Make](https://www.gnu.org/software/make/)
+4. A C/C++ compilation toolchain
+5. Full Internet access is expected
 
 Remark that the installation building and deployment tools have only been tested on
 Ubuntu Linux, MacOS and [WSL2/Ubuntu](https://learn.microsoft.com/en-us/windows/wsl/about) systems running on Intel x86-64 hardware.
