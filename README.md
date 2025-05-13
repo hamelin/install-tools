@@ -287,7 +287,7 @@ so it can also be used as a launcher for the tools in the environment.
 For instance:
 
 ```sh
-path/to/environment/startshell -c 'echo $PATH'
+path/to/environment/bin/startshell -c 'echo $PATH'
 ```
 
 yields
@@ -299,7 +299,7 @@ yields
 More typically, one simply runs
 
 ```sh
-path/to/environment/startshell
+path/to/environment/bin/startshell
 ```
 
 so as to have a shell duly set up for using the installed Python distribution and tools.
