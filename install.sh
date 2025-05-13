@@ -195,11 +195,13 @@ WRONGPYTHON
             exit 9
         fi
     fi
-fi
 
-echo "--- Install Tutte Institute tools and their dependencies ---"
-eval $pip_cmd
-echo "--- Environment setup is successful ---"
+    echo "--- Install Tutte Institute tools and their dependencies ---"
+    eval $pip_cmd
+    echo "--- Environment setup is successful ---"
+else
+    echo "--- Python environment is already complete ---"
+fi
 
 tasks=$(ls "$dir_installer"/tasks/*.sh | sort)
 num_tasks=$(wc -w <<<"$tasks")
