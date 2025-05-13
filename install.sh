@@ -182,12 +182,8 @@ ERRMSG
         rm -rf "$path_install" || true
         bash "$dir_installer/base-$version-$platform.sh" -b -p "$path_install" -f
         cp "$dir_installer/startshell" "$path_install/bin/startshell"
-        echo "--- Install Tutte Institute tools ---"
-        "$path_install/bin/startshell" -- <<-SETUP
-        eval $pip_cmd
-SETUP
+        export PATH="$path_install/bin:$PATH"
     else
-    echo "--- Install Tutte Institute tools in situ ---"
         python_version_here="$(python -c 'import sys; print(f"{{sys.version_info.major}}.{{sys.version_info.minor}}")')"
         if [ "$python_version_here" != "{python_version}" ]; then
             $msg <<-WRONGPYTHON
@@ -198,9 +194,21 @@ Python distribution with which the wheels included herein can be used.
 WRONGPYTHON
             exit 9
         fi
-        eval $pip_cmd
     fi
-    echo "--- Environment setup is successful ---"
 fi
+
+echo "--- Install Tutte Institute tools and their dependencies ---"
+eval $pip_cmd
+echo "--- Environment setup is successful ---"
+
+tasks=$(ls "$dir_installer"/tasks/*.sh | sort)
+num_tasks=$(wc -w <<<"$tasks")
+echo "--- Post-install tasks ---"
+i=0
+for task in $tasks; do
+    i=$(($i + 1))
+    step="[$i/$num_tasks]"
+    source "$task"
+done
 
 exit 0
