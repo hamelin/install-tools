@@ -159,7 +159,7 @@ but it has not been tested by the author and it is not supported.
 \*BSD platforms are also excluded from support,
 as no [Conda binary](https://repo.anaconda.com/miniconda/) is being distributed for them.
 
-### Usage
+### Setup and deployment
 
 Having cloned this repository, `cd` into your local copy and invoke
 
@@ -237,6 +237,72 @@ There are three ways in which the installation can be run.
 
 Finally, installation tasks are, by default, confirmed interactively in the shell.
 To bypass this confirmation and just carry on in any case, use option `-q`.
+
+### Using the installed Python distribution
+
+Depending on the installation type,
+one either gets a Python virtual environment or a Conda environment.
+In the former case,
+one uses it by *activating* the environment per usual.
+For the usual Bash/Zsh shell,
+
+```sh
+source path/to/environment/bin/activate
+```
+
+There are alternative activation scripts for Powershell, Tcsh or Fish.
+
+If instead the installation was *complete*,
+as performed using either the `-n` or `-p` flags of the installer,
+then the distribution works as a *Conda environment*.
+If Conda is also deployed
+(and set up for the user's shell)
+on this air-gapped host,
+one can use
+
+```sh
+conda activate name-of-environment  # Instealled with -n name-of-environment
+conda activate path-to-environment  # Installed with -p path/to/environment
+```
+
+Short of using Conda,
+*activating* such an environment merely involves tweaking the value of a set of environment variables.
+For a basic Python distribution,
+the only variable that strictly needs tweaking is `PATH`.
+Thus, running in one's shell the Bash/Zsh equivalent to
+
+```sh
+export PATH="$(realpath path/to/environment):$PATH"
+```
+
+should suffice to make the distribution's `python`, `pip` and other executables pre-eminent,
+and thus the environment *active*.
+For the sake of convenience,
+the distribution comes with a utility script named `startshell`.
+This tool starts a subshell
+(using the user's `$SHELL`, falling back on `/bin/bash`)
+where this `PATH` tweaking is done.
+`startshell` takes and relays all its parameters to the shell it starts,
+so it can also be used as a launcher for the tools in the environment.
+For instance:
+
+```sh
+path/to/environment/startshell -c 'echo $PATH'
+```
+
+yields
+
+```
+/root/to/working/directory/path/to/environment/bin:<rest of what was in PATH>
+```
+
+More typically, one simply runs
+
+```sh
+path/to/environment/startshell
+```
+
+so as to have a shell duly set up for using the installed Python distribution and tools.
 
 ### Installer customization
 
