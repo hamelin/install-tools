@@ -1,4 +1,4 @@
 #!/bin/bash
-dir_bin="$(realpath $(dirname $0))/bin"
+dir_bin="$(realpath $(dirname $0))"
 export PATH="$dir_bin:$PATH"
 exec ${SHELL:-/bin/bash} "${@:--l}"

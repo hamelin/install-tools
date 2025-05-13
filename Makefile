@@ -12,6 +12,8 @@ IN_ENV = source $(BASE)/bin/activate && conda activate $(1)
 CONCRETIZE = mkdir -p $(dir $(2)) && $(call IN_ENV,base) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), python_version="$(PYTHON_VERSION)", dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
 SUBDIR_INSTALL = timc-installer-py$(PYTHON_VERSION)-${VERSION}
 GOODIE = $(OUTPUT)/$(SUBDIR_INSTALL)
+TASK = $(GOODIE)/tasks
+TARGET = $(OUTPUT)/target
 
 INSTALLER_BASE=$(GOODIE)/base-$(VERSION)-$(PLATFORM).sh
 WHEEL=$(GOODIE)/wheels/$(1)
@@ -19,6 +21,7 @@ WHEELS=$(OUTPUT)/wheels-gathered
 INSTALLER=$(OUTPUT)/timc-installer-$(VERSION)-py$(PYTHON_VERSION)-$(PLATFORM).sh
 
 GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/startshell
+GOODIES += $(foreach task,$(wildcard local/*.sh),$(TASK)/$(notdir $(task)))
 GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
 IMAGES = data-exploration data-science
@@ -66,9 +69,23 @@ $(OUTPUT)/install.sh: install.sh $(BOOTSTRAP)/ready config.mk
 	$(call CONCRETIZE,$<,$@)
 	truncate --size=$(SIZE_HEADER) $@
 
+.PHONY: ls-goodies
+ls-goodies:
+	@echo $(GOODIES) | xargs -n1
+
 $(GOODIES_GATHERED): $(GOODIES)
 	touch $@
 	
+$(TARGET)/ready: $(GOODIE)/requirements.txt $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt
+	@rm -f $@
+	$(INSTALLER_BASE) -b -p $(@D)
+	$(call IN_ENV,$(TARGET)) && pip install --no-index --find-links $(WHEEL) --requirement $<
+	touch $@
+
+$(TASK)/%.sh: local/%.sh
+	mkdir -p $(@D)
+	$(call CONCRETIZE,$<,$@)
+
 $(GOODIE)/requirements.txt: exploration.txt
 	mkdir -p $(@D)
 	cp $< $@
@@ -101,6 +118,8 @@ $(BASE)/ready: $(MINICONDA_INSTALLER)
 	./$(MINICONDA_INSTALLER) -bf -p $(@D)
 	$(call IN_ENV,base) && conda install --override-channels --channel defaults --yes constructor
 	touch $@
+
+-include $(sort $(wildcard local/*.mk))
 
 $(MINICONDA_INSTALLER):
 	mkdir -p $(@D)
