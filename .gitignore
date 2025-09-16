@@ -1,2 +1,5 @@
 out
 miniconda
+__pycache__
+*.pyc
+dist
