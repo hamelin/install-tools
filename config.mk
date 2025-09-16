@@ -1,5 +1,5 @@
 SHELL = /bin/bash
-VERSION = 20250509
+VERSION = 20250916
 OUTPUT = out
 PLATFORM = $(shell uname -s)-$(shell uname -m)
 SIZE_HEADER = 8192

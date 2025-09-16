@@ -45,10 +45,14 @@ $(PKG): config.mk
 
 .PHONY: pkg.publish
 pkg.publish: $(PKG)
-	uv publish --username=__token__
+	uv publish
 
-.PHONY: docker.images
-docker.images: $(foreach image,$(IMAGES),build/$(image))
+.PHONY: pkg.clean
+pkg.clean:
+	rm -rf dist
+
+.PHONY: docker.build
+docker.build: $(foreach image,$(IMAGES),docker.build/$(image))
 
 docker.build/%: config.mk
 	docker build . \
@@ -59,14 +63,14 @@ docker.build/%: config.mk
 		--build-arg PYTHON_VERSION=$(PYTHON_VERSION)
 	docker tag $(call TAG,$(@F),$(VERSION)) $(call TAG,$(@F),latest)
 
-.PHONY: docker.push
-docker.push: $(foreach image,$(IMAGES),push/$(image))
+.PHONY: docker.publish
+docker.publish: $(foreach image,$(IMAGES),docker.publish/$(image))
 
-docker.push/%: docker.build/%
+docker.publish/%: docker.build/%
 	docker push --all-tags $(call TAG,$(@F),)
 
-.PHONY: dockerclean
-dockerclean:
+.PHONY: docker.clean
+docker.clean:
 	docker images --format '{{.Repository}}:{{.Tag}}' | grep '$(call TAG,,)' | xargs --max-args=1 --no-run-if-empty docker image rm
 
 .PHONY: installer
@@ -90,7 +94,7 @@ ls-goodies:
 
 $(GOODIES_GATHERED): $(GOODIES)
 	touch $@
-	
+
 $(TARGET)/ready: $(GOODIE)/requirements.txt $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt
 	@rm -f $@
 	$(INSTALLER_BASE) -b -p $(@D)
@@ -108,7 +112,7 @@ $(GOODIE)/requirements.txt: exploration.txt
 $(GOODIE)/startshell: startshell
 	mkdir -p $(@D)
 	cp $< $@
-	
+
 $(WHEELS): exploration.txt $(BOOTSTRAP)/ready
 	$(call IN_ENV,$(BOOTSTRAP)) && pip wheel --wheel-dir $(WHEEL) --no-cache-dir -r $<
 	touch $@

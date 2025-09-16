@@ -1,6 +1,6 @@
 [project]
 name = "timc-vector-toolkit"
-version = "2025.9.16"
+version = "20250916"
 description = "Ensemble package for all Tutte Institute librairies involved in data vectorization, dimension reduction, clustering and exploratory visualization"
 readme = "src/timc_vector_toolkit/_readme.md"
 authors = [
