@@ -1,0 +1,26 @@
+[project]
+name = "timc-vector-toolkit"
+version = "2025.9.16"
+description = "Ensemble package for all Tutte Institute librairies involved in data vectorization, dimension reduction, clustering and exploratory visualization"
+readme = "src/timc_vector_toolkit/_readme.md"
+authors = [
+    { name = "Benoit Hamelin", email = "benoit.hamelin@cyber.gc.ca" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "datamapplot>=0.6.4",
+    "einops>=0.8.1",
+    "evoc>=0.1.3",
+    "fast-hdbscan>=0.2.2",
+    "glasbey>=0.3.0",
+    "hdbscan>=0.8.40",
+    "ipykernel>=6.30.1",
+    "toponymy>=0.3.0",
+    "tqdm>=4.67.1",
+    "umap-learn[plot]>=0.5.8",
+    "vectorizers>=0.2.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

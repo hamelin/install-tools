@@ -1,5 +1,7 @@
 include config.mk
 
+PKG = dist/timc_vector_toolkit-$(VERSION).tar.gz
+
 MINICONDA = Miniconda3-latest-$(PLATFORM).sh
 DIR_MINICONDA = miniconda
 MINICONDA_INSTALLER = $(DIR_MINICONDA)/$(MINICONDA)
@@ -29,13 +31,26 @@ IMAGES = data-exploration data-science
 
 # -------------------------------------------------------------------
 
-.PHONY: all
-all: installer dockerimages
+.PHONY: help
+help:
+	@cat help-makefile.txt
 
-.PHONY: dockerimages
-dockerimages: $(foreach image,$(IMAGES),build/$(image))
+.PHONY: pkg.build
+pkg.build: $(PKG)
 
-build/%:
+$(PKG): config.mk
+	uv version $(VERSION)
+	uv lock --upgrade
+	uv build
+
+.PHONY: pkg.publish
+pkg.publish: $(PKG)
+	uv publish --username=__token__
+
+.PHONY: docker.images
+docker.images: $(foreach image,$(IMAGES),build/$(image))
+
+docker.build/%: config.mk
 	docker build . \
 		--target $(@F) \
 		--tag $(call TAG,$(@F),$(VERSION)) \
@@ -44,10 +59,10 @@ build/%:
 		--build-arg PYTHON_VERSION=$(PYTHON_VERSION)
 	docker tag $(call TAG,$(@F),$(VERSION)) $(call TAG,$(@F),latest)
 
-.PHONY: dockerpush
-dockerpush: $(foreach image,$(IMAGES),push/$(image))
+.PHONY: docker.push
+docker.push: $(foreach image,$(IMAGES),push/$(image))
 
-push/%: build/%
+docker.push/%: docker.build/%
 	docker push --all-tags $(call TAG,$(@F),)
 
 .PHONY: dockerclean

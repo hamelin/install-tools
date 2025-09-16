@@ -1,0 +1,22 @@
+Makefile targets of note:
+
+pkg.build:
+	Build the Python package timc-vector-toolkit.
+
+pkg.publish:
+	Publish the timc-vector-toolkit package over to PyPI.
+
+pkg.clean:
+	Clean up package artifacts.
+
+docker.build:
+	Build the Docker images.
+
+docker.publish:
+	Publish the Docker images over to Docker Hub.
+
+docker.clean:
+	Clean up and discard the Docker images.
+
+installer:
+	Build the all-dressed Python installer and runner script for air-gapped usage.
