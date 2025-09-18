@@ -1,6 +1,10 @@
 include config.mk
 
-PKG = dist/timc_vector_toolkit-$(VERSION).tar.gz
+ROOT_PKG = timc_vector_toolkit
+DIST = $(addprefix dist/,$(1))
+PKG = $(call DIST,$(ROOT_PKG)-$(VERSION).tar.gz $(ROOT_PKG)-$(VERSION)-py3-none-any.whl)
+PUBLISHED = $(addsuffix .published,$(1))
+PKG_PUBLISHED = $(call PUBLISHED,$(PKG))
 
 MINICONDA = Miniconda3-latest-$(PLATFORM).sh
 DIR_MINICONDA = miniconda
@@ -38,14 +42,18 @@ help:
 .PHONY: pkg.build
 pkg.build: $(PKG)
 
-$(PKG): config.mk
+$(PKG) &: config.mk
 	uv version $(VERSION)
-	uv lock --upgrade
+	git diff --exit-code pyproject.toml || uv lock --upgrade
 	uv build
 
 .PHONY: pkg.publish
-pkg.publish: $(PKG)
-	uv publish
+pkg.publish: $(PKG_PUBLISHED)
+
+$(PKG_PUBLISHED) &: $(PKG)
+	@test -n "$$UV_PUBLISH_TOKEN" || (echo "UV_PUBLISH_TOKEN undefined, so cannot publish."; false)
+	uv publish $(PKG)
+	touch $(PKG_PUBLISHED)
 
 .PHONY: pkg.clean
 pkg.clean:
