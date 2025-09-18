@@ -30,8 +30,6 @@ GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/start
 GOODIES += $(foreach task,$(wildcard local/*.sh),$(TASK)/$(notdir $(task)))
 GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
-IMAGES = data-exploration data-science
-
 
 # -------------------------------------------------------------------
 
@@ -60,22 +58,17 @@ pkg.clean:
 	rm -rf dist
 
 .PHONY: docker.build
-docker.build: $(foreach image,$(IMAGES),docker.build/$(image))
-
-docker.build/%: config.mk
+docker.build: config.mk pkg.publish
 	docker build . \
-		--target $(@F) \
-		--tag $(call TAG,$(@F),$(VERSION)) \
+		--tag $(call TAG,vector-toolkit,$(VERSION)) \
 		--build-arg IMAGE_BASE=$(IMAGE_BASE) \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg PYTHON_VERSION=$(PYTHON_VERSION)
-	docker tag $(call TAG,$(@F),$(VERSION)) $(call TAG,$(@F),latest)
+	docker tag $(call TAG,vector-toolkit,$(VERSION)) $(call TAG,vector-toolkit,latest)
 
 .PHONY: docker.publish
-docker.publish: $(foreach image,$(IMAGES),docker.publish/$(image))
-
-docker.publish/%: docker.build/%
-	docker push --all-tags $(call TAG,$(@F),)
+docker.publish: docker.build
+	docker push --all-tags $(call TAG,vector-toolkit,)
 
 .PHONY: docker.clean
 docker.clean:
