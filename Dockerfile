@@ -1,6 +1,6 @@
 ARG IMAGE_BASE=ubuntu:latest
 
-FROM ${IMAGE_BASE} AS base
+FROM ${IMAGE_BASE}
 ARG VERSION
 ARG PYTHON_VERSION
 SHELL ["/bin/bash", "-c"]
