@@ -119,29 +119,25 @@ fi
 
 shift $((OPTIND - 1))
 [ "$1" = "--help" ] && exit_help
+if [ -n "$1" -a "$path_install" = "." ]; then
+    path_install="$1"
+fi
 
 must_install=""
 prompt=""
 if [ "$path_install" = "." ]; then
-    if [ -n "$VIRTUAL_ENV" -o -n "$CONDA_DEFAULT_ENV" ]; then
-        if ! command -v dmp_offline_cache >/dev/null; then
-            must_install="pip"
-            if [ -n "$VIRTUAL_ENV" ]; then
-                prompt="About to install the tools in the current venv ($VIRTUAL_ENV). Proceed?"
-            elif [ -n "$CONDA_DEFAULT_ENV" ]; then
-                prompt="About to install the tools in the current Conda environment ($CONDA_DEFAULT_ENV). Proceed?"
-            else
-                echo "Incoherent venv/Conda env settings detected. Use the -p or -n option."
-                exit 7
-            fi
-        fi
+    must_install="pip"
+    if [ -n "$VIRTUAL_ENV" ]; then
+        prompt="About to install the tools in the current venv ($VIRTUAL_ENV). Proceed?"
+    elif [ -n "$CONDA_DEFAULT_ENV" ]; then
+        prompt="About to install the tools in the current Conda environment ($CONDA_DEFAULT_ENV). Proceed?"
     fi
 elif [ ! -d "$path_install" ]; then
-    must_install="conda+pip"
-    prompt="About to install Python and Tutte Institute tools in new directory $path_install. Proceed?"
-elif [ ! -f "$path_install/bin/activate" -o ! -f "$path_install/bin/dmp_offline_cache" ]; then
     must_install="conda pip"
-    prompt="Environment at $path_install seems to lack some critical components. Reinstall?"
+    prompt="About to install Python and Tutte Institute tools in new directory $path_install. Proceed?"
+else
+    must_install="conda pip"
+    prompt="Environment at $path_install seems to be already set up. Reinstall?"
 fi
 if [ -n "$interactive" -a -n "$prompt" ]; then
     read -e -p "$prompt [Yn] "
@@ -183,6 +179,7 @@ ERRMSG
         bash "$dir_installer/base-$version-$platform.sh" -b -p "$path_install" -f
         cp "$dir_installer/startshell" "$path_install/bin/startshell"
         export PATH="$path_install/bin:$PATH"
+        python -c "import sys; print(sys.stdin.read().replace('<DIRINSTALL>', '''$(realpath $path_install)/bin'''))" <"$dir_installer/enable-python.sh" >"$path_install/bin/enable-python.sh"
     else
         python_version_here="$(python -c 'import sys; print(f"{{sys.version_info.major}}.{{sys.version_info.minor}}")')"
         if [ "$python_version_here" != "{python_version}" ]; then
@@ -212,5 +209,44 @@ for task in $tasks; do
     step="[$i/$num_tasks]"
     source "$task"
 done
+
+cat <<EPILOG_TOP
+===============================================================================
+
+Setup complete and successful!
+
+EPILOG_TOP
+if [ "$path_install" = "." ]; then
+    if [ -n "$VIRTUAL_ENV" ]; then
+        echo "The TIMC tools were deployed into the Python virtual environment"
+        echo "$VIRTUAL_ENV. This venv is currently active."
+    elif [ -n "$CONDA_DEFAULT_ENV" ]; then
+        echo "The TIMC tools were deployed into the Conda environment"
+        echo "$CONDA_DEFAULT_ENV. This environment is currently active."
+    else
+        echo "The TIMC tools were deployed into the system Python distribution."
+    fi
+elif [ -n "$CONDA_EXE" -a -n "$CONDA_DEFAULT_ENV" ]; then
+    echo "To use your new environment, activate it:"
+    echo ""
+    if [ -n "$name_env" ]; then
+        echo "    conda activate $name_env"
+    fi
+    echo "    conda activate $(realpath "$path_install")"
+else
+    cat <<-EPILOG_STANDALONE
+To use this standalone Python environment, you must now enable it by running
+the shell command
+
+    . $path_install/bin/enable-python.sh
+
+Be sure to do that in every shell you wish to run Python from; you can also
+safely add the statement to your .bashrc.
+EPILOG_STANDALONE
+fi
+cat <<EPILOG_BOTTOM
+
+===============================================================================
+EPILOG_BOTTOM
 
 exit 0

@@ -26,9 +26,8 @@ WHEEL=$(GOODIE)/wheels/$(1)
 WHEELS=$(OUTPUT)/wheels-gathered
 INSTALLER=$(OUTPUT)/timc-installer-$(VERSION)-py$(PYTHON_VERSION)-$(PLATFORM).sh
 
-GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/startshell
+GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/startshell $(GOODIE)/enable-python.sh
 GOODIES += $(foreach task,$(wildcard local/*.sh),$(TASK)/$(notdir $(task)))
-GOODIES_GATHERED = $(OUTPUT)/goodies-gathered
 
 
 # -------------------------------------------------------------------
@@ -77,7 +76,7 @@ docker.clean:
 .PHONY: installer
 installer: $(INSTALLER)
 
-$(INSTALLER): $(OUTPUT)/install.sh $(GOODIES_GATHERED)
+$(INSTALLER): $(OUTPUT)/install.sh $(GOODIES)
 	test -d $(GOODIE)/tmp && rmdir $(GOODIE)/tmp || true
 	cat $< <(cd $(OUTPUT) && tar cvf - $(SUBDIR_INSTALL)) >$@
 	chmod +x $@
@@ -93,8 +92,8 @@ $(OUTPUT)/install.sh: install.sh $(BOOTSTRAP)/ready config.mk
 ls-goodies:
 	@echo $(GOODIES) | xargs -n1
 
-$(GOODIES_GATHERED): $(GOODIES)
-	touch $@
+.PHONY: goodies
+goodies: $(GOODIES)
 
 $(TARGET)/ready: $(GOODIE)/requirements.txt $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt
 	@rm -f $@
@@ -111,6 +110,10 @@ $(GOODIE)/requirements.txt: exploration.txt
 	cp $< $@
 
 $(GOODIE)/startshell: startshell
+	mkdir -p $(@D)
+	cp $< $@
+
+$(GOODIE)/enable-python.sh: enable-python.sh
 	mkdir -p $(@D)
 	cp $< $@
 
@@ -136,6 +139,7 @@ $(OUTPUT)/bootstrap.yaml: bootstrap.yaml config.mk $(BASE)/ready
 
 $(BASE)/ready: $(MINICONDA_INSTALLER)
 	./$(MINICONDA_INSTALLER) -bf -p $(@D)
+	$(call IN_ENV,base) $(foreach ch,main r,&& conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/$(ch))
 	$(call IN_ENV,base) && conda install --override-channels --channel defaults --yes constructor
 	touch $@
 
@@ -145,6 +149,15 @@ $(MINICONDA_INSTALLER):
 	mkdir -p $(@D)
 	curl -o $@ https://repo.anaconda.com/miniconda/$(MINICONDA) && chmod +x $@ || rm $@
 
+.PHONY: testbed.build
+testbed.build:
+	docker build --file Dockerfile.testbed $(and $(TEST_BASE),--build-arg TEST_BASE=$(TEST_BASE)) -t testbed-$(or $(TEST_BASE),ubuntu) .
+
+.PHONY: testbed.run
+testbed.run: testbed.build $(INSTALLER)
+	chmod a+rX $(OUTPUT)/
+	docker run -ti --rm --mount type=bind,src=$$(pwd)/$(OUTPUT),dst=/ext testbed-$(or $(TEST_BASE),ubuntu)
+	
 clean:
 	test -d $(CONSTRUCTOR) && $(call IN_ENV,$(CONSTRUCTOR)) && constructor --clean || exit 0
 	rm -rf $(OUTPUT)
