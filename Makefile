@@ -40,7 +40,7 @@ help:
 .PHONY: pkg.build
 pkg.build: $(PKG)
 
-$(PKG) &: config.mk
+$(PKG) &: config.mk $(wildcard src/timc_vector_toolkit/*)
 	uv version $(VERSION)
 	git diff --exit-code pyproject.toml || uv lock --upgrade
 	uv build

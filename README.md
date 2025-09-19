@@ -10,9 +10,10 @@ as well as a set of tools for addressing some deployment edge cases.
 
 This README file exposes various methods for installing,
 in particular,
-the Institute's data exploration and mapping libraries,
+the Institute's unstructured data exploration and mapping tools,
 including [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan)
 and [UMAP](https://github.com/lmcinnes/umap).
+These tools are collectively understood as the **TIMC vector toolkit**.
 
 Shortcuts to the various installation and deployment procedures:
 
@@ -24,19 +25,17 @@ Shortcuts to the various installation and deployment procedures:
 ## Installing from PyPI (or a mirror)
 
 The main release channel for Tutte Institute libraries is the [Python Package Index](https://pypi.org/).
-The simplest and best-supported approach to deploy these tools is thus simply to use `pip install`.
-One may fetch file [exploration.txt](https://raw.githubusercontent.com/TutteInstitute/install-tools/refs/heads/main/exploration.txt)
-and use it as a [requirements file](https://pip.pypa.io/en/stable/reference/requirements-file-format/),
-invoking
+The simplest and best-supported approach to deploy these tools is thus simply to use `pip install`
+(or the tools that supersede it, such as [uv](https://docs.astral.sh/uv/) or [Poetry](https://python-poetry.org/)).
 
 ```sh
-pip install -r exploration.txt
+pip install timc-vector-toolkit
 ```
 
-In addition to `exploration.txt`,
-this repository also provides another requirements file named [`science.txt`](https://raw.githubusercontent.com/TutteInstitute/install-tools/refs/heads/main/science.txt).
-This one complements `exploration.txt` with further libraries and tools
-that the data scientists of the Tutte Institute use in their day-to-day research and data analysis work.
+This package includes the Institute libraries without upper-bounding their versions.
+As such, newer versions of the package are mainly produced when adding new libraries
+to the toolkit.
+Please do not mistake the age of package `timc-vector-toolkit` for abandon.
 
 ### Requirements
 
@@ -55,7 +54,7 @@ the user has already set up a C/C++ compilation toolchain using their operating 
 ```sh
 python -m venv timc-tools
 . timc-tools/bin/activate
-python -m pip install -r exploration.txt
+python -m pip install timc-vector-toolkit
 ```
 
 Using a [Conda](https://docs.conda.io/en/latest/) environment.
