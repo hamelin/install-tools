@@ -1,0 +1,31 @@
+name: base         # This does not matter much, but constructor requires it.
+version: 20250922  # Same.
+
+channels:
+  # Add conda-forge if one needs, or would rather not use the curated
+  # corporate Anaconda channels. Leaving it out results in the faster
+  # resolution of the environment.
+  - defaults
+
+specs:
+  # Don't touch this! Choose python version by editing file python_version.
+  - python={python_version}
+  - pip
+
+  # setuptools and wheel are useful for downstream package making.
+  - setuptools
+  - setuptools-rust
+  - wheel
+
+  # Conda hosts the basic numerical libraries compiled against Intel MKL
+  # libraries for best usage of Intel CPUs. Alternatively, one can get these
+  # packages from PyPI without much penalty, especially if building an
+  # installer for an ARM-based target system.
+  - numpy
+  - scipy
+  - scikit-learn
+
+  # Including node.js is useful if one includes Jupyter Notebook/Lab in their
+  # installer, as it facilitates the deployment of Jupyter extensions.
+  - nodejs
+

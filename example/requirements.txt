@@ -1,0 +1,11 @@
+# This example pulls a basic data exploration setup:
+# - The TIMC Vector Toolkit
+# - Pandas, Matplotlib and Jupyter Lab.
+ipympl
+ipywidgets
+jupyterlab
+matplotlib
+pandas
+pyarrow
+timc-vector-toolkit
+tqdm

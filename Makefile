@@ -1,4 +1,5 @@
 include config.mk
+SHELL = /bin/bash
 
 ROOT_PKG = timc_vector_toolkit
 DIST = $(addprefix dist/,$(1))
@@ -6,31 +7,23 @@ PKG = $(call DIST,$(ROOT_PKG)-$(VERSION).tar.gz $(ROOT_PKG)-$(VERSION)-py3-none-
 PUBLISHED = $(addsuffix .published,$(1))
 PKG_PUBLISHED = $(call PUBLISHED,$(PKG))
 
-MINICONDA = Miniconda3-latest-$(PLATFORM).sh
+MINICONDA = Miniconda3-latest-$(shell uname -s)-$(shell uname -m).sh
 DIR_MINICONDA = miniconda
 MINICONDA_INSTALLER = $(DIR_MINICONDA)/$(MINICONDA)
+GROUND = $(DIR_MINICONDA)/ground
+CONSTRUCTOR = $(GROUND)/bin/constructor
+FROM_GROUND = source $(GROUND)/bin/activate
+BOOTSTRAP = out/$(1)-bootstrap
+FROM_BOOTSTRAP = $(FROM_GROUND) && conda activate $(call BOOTSTRAP,$(1))
+RESOLVE = $(FROM_GROUND) && python resolve.py $(1)
 
-BASE = $(OUTPUT)/base
-CONSTRUCTOR = $(BASE)
-BOOTSTRAP = $(OUTPUT)/bootstrap
-IN_ENV = source $(BASE)/bin/activate && conda activate $(1)
-
-CONCRETIZE = mkdir -p $(dir $(2)) && $(call IN_ENV,base) && python -c 'import sys; print(sys.stdin.read().format(platform="$(PLATFORM)", version="$(VERSION)", after_header=str($(SIZE_HEADER) + 1), python_version="$(PYTHON_VERSION)", dir_installer="./$(SUBDIR_INSTALL)"))' <$(1) >$(2) || (rm -f $(2); exit 1)
-SUBDIR_INSTALL = timc-installer-py$(PYTHON_VERSION)-${VERSION}
-GOODIE = $(OUTPUT)/$(SUBDIR_INSTALL)
-TASK = $(GOODIE)/tasks
-TARGET = $(OUTPUT)/target
-
-INSTALLER_BASE=$(GOODIE)/base-$(VERSION)-$(PLATFORM).sh
-WHEEL=$(GOODIE)/wheels/$(1)
-WHEELS=$(OUTPUT)/wheels-gathered
-INSTALLER=$(OUTPUT)/timc-installer-$(VERSION)-py$(PYTHON_VERSION)-$(PLATFORM).sh
-
-GOODIES = $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt $(GOODIE)/startshell $(GOODIE)/enable-python.sh
-GOODIES += $(foreach task,$(wildcard local/*.sh),$(TASK)/$(notdir $(task)))
+BOOTSTRAP = out/$(1)-bootstrap
+BOOTSTRAP_PIP = $(call BOOTSTRAP,$(1))/bin/pip
+DIR_ARTIFACTS = out/$(1)-artifacts
+COMMON_ARTIFACTS = $(addprefix $(call DIR_ARTIFACTS,$(1))/,requirements.txt startshell enable-python.sh install-python.sh)
 
 
-# -------------------------------------------------------------------
+# --- timc-vector-toolkit Python package -------------------------------------
 
 .PHONY: help
 help:
@@ -56,6 +49,9 @@ $(PKG_PUBLISHED) &: $(PKG)
 pkg.clean:
 	rm -rf dist
 
+
+# --- Docker image -----------------------------------------------------------
+
 .PHONY: docker.build
 docker.build: config.mk pkg.publish
 	docker build . \
@@ -73,77 +69,75 @@ docker.publish: docker.build
 docker.clean:
 	docker images --format '{{.Repository}}:{{.Tag}}' | grep '$(call TAG,,)' | xargs --max-args=1 --no-run-if-empty docker image rm
 
-.PHONY: installer
-installer: $(INSTALLER)
 
-$(INSTALLER): $(OUTPUT)/install.sh $(GOODIES)
-	test -d $(GOODIE)/tmp && rmdir $(GOODIE)/tmp || true
-	cat $< <(cd $(OUTPUT) && tar cvf - $(SUBDIR_INSTALL)) >$@
+# --- Offline installer ------------------------------------------------------
+
+out/%.sh: out/%-install.sh $(call COMMON_ARTIFACTS,%) out/%.wheels out/%.extras
+	cat $< <(cd out && tar cf - $*-artifacts) >$@
 	chmod +x $@
 	test -f $@ -a $$(stat --format %s $@) -gt 1048576 || (rm -f $@ ; exit 1)
 
-$(OUTPUT)/install.sh: install.sh $(BOOTSTRAP)/ready config.mk
-	test $$(stat --format="%s" $<) -lt $(SIZE_HEADER)
-	mkdir -p $(@D)
-	$(call CONCRETIZE,$<,$@)
-	truncate --size=$(SIZE_HEADER) $@
-
-.PHONY: ls-goodies
-ls-goodies:
-	@echo $(GOODIES) | xargs -n1
-
-.PHONY: goodies
-goodies: $(GOODIES)
-
-$(TARGET)/ready: $(GOODIE)/requirements.txt $(INSTALLER_BASE) $(WHEELS) $(GOODIE)/requirements.txt
-	@rm -f $@
-	$(INSTALLER_BASE) -b -p $(@D)
-	$(call IN_ENV,$(TARGET)) && pip install --no-index --find-links $(WHEEL) --requirement $<
+out/%.extras: %/extras.mk $(wildcard %/tasks/*.sh)
+	$(MAKE) -f $< SHELL=/bin/bash DIR_ARTIFACTS="$(call DIR_ARTIFACTS,$*)" BOOTSTRAP="out/$*-bootstrap" FROM_BOOTSTRAP="$(call FROM_BOOTSTRAP,$*)"
+	mkdir -p $(call DIR_ARTIFACTS,$*)/tasks
+	cp -v $*/tasks/*.sh $(call DIR_ARTIFACTS,$*)/tasks
 	touch $@
+.PRECIOUS: out/%.extras
 
-$(TASK)/%.sh: local/%.sh
+out/%-install.sh: install.sh %/python_version $(CONSTRUCTOR)
 	mkdir -p $(@D)
-	$(call CONCRETIZE,$<,$@)
+	$(call RESOLVE,$*) <$< >$@
+.PRECIOUS: out/%-install.sh
+	
+.PHONY: out/%/common-artifacts
+out/%/common-artifacts: $(call COMMON_ARTIFACTS,%)
+	@true
 
-$(GOODIE)/requirements.txt: exploration.txt
+$(call DIR_ARTIFACTS,%)/requirements.txt: %/requirements.txt
 	mkdir -p $(@D)
 	cp $< $@
+.PRECIOUS: $(call DIR_ARTIFACTS,%)/requirements.txt
 
-$(GOODIE)/startshell: startshell
+$(call DIR_ARTIFACTS,%)/startshell: startshell
 	mkdir -p $(@D)
 	cp $< $@
-
-$(GOODIE)/enable-python.sh: enable-python.sh
+.PRECIOUS: $(call DIR_ARTIFACTS,%)/startshell
+		
+$(call DIR_ARTIFACTS,%)/enable-python.sh: enable-python.sh
 	mkdir -p $(@D)
 	cp $< $@
+.PRECIOUS: $(call DIR_ARTIFACTS,%)/enable-python.sh
 
-$(WHEELS): exploration.txt $(BOOTSTRAP)/ready
-	$(call IN_ENV,$(BOOTSTRAP)) && pip wheel --wheel-dir $(WHEEL) --no-cache-dir -r $<
+out/%.wheels: %/requirements.txt $(call BOOTSTRAP_PIP,%)
+	mkdir -p $(call DIR_ARTIFACTS,$*)
+	$(call FROM_BOOTSTRAP,$*) && $(call BOOTSTRAP_PIP,$*) wheel --wheel-dir $(call DIR_ARTIFACTS,$*)/wheels --no-cache-dir -r $<
 	touch $@
+.PRECIOUS: out/%.wheels
 
-$(INSTALLER_BASE): $(OUTPUT)/construct.yaml $(BASE)/ready
+.PHONY: out/%/bootstrap
+out/%/bootstrap: $(call BOOTSTRAP_PIP,%)
+	
+$(call BOOTSTRAP_PIP,%): %/bootstrap.yaml %/python_version $(CONSTRUCTOR)
+	$(call RESOLVE,$*) <$< >out/$*-bootstrap.yaml
+	$(FROM_GROUND) && conda env create --prefix $(call BOOTSTRAP,$*) --file out/$*-bootstrap.yaml --yes
+.PRECIOUS: $(call BOOTSTRAP_PIP,%)
+
+$(call DIR_ARTIFACTS,%)/install-python.sh: %/construct.yaml %/python_version $(CONSTRUCTOR)
 	mkdir -p $(@D)
-	$(call IN_ENV,$(CONSTRUCTOR)) && constructor --output-dir $(@D) $(<D)
+	$(call RESOLVE,$*) <$< >out/$*-construct.yaml
+	DIRTEMP=$$(mktemp -d) \
+		&& trap "rm -rf \"$$DIRTEMP\"" EXIT \
+		&& $(FROM_GROUND) \
+		&& constructor --output-dir $$DIRTEMP --config-file=$*-construct.yaml out \
+		&& cat "$$DIRTEMP"/*.sh >$@ \
+		|| rm -f $@
+.PRECIOUS: $(call DIR_ARTIFACTS,%)/install-python.sh
 
-$(OUTPUT)/construct.yaml: construct.yaml $(CONSTRUCTOR)/ready config.mk
-	mkdir -p $(@D)
-	$(call CONCRETIZE,$<,$@)
-
-$(BOOTSTRAP)/ready: $(OUTPUT)/bootstrap.yaml $(BASE)/ready
-	$(call IN_ENV,base) && conda env create --prefix $(@D) --file $< --yes
-	touch $@
-
-$(OUTPUT)/bootstrap.yaml: bootstrap.yaml config.mk $(BASE)/ready
-	mkdir -p $(@D)
-	$(call CONCRETIZE,$<,$@)
-
-$(BASE)/ready: $(MINICONDA_INSTALLER)
-	./$(MINICONDA_INSTALLER) -bf -p $(@D)
-	$(call IN_ENV,base) $(foreach ch,main r,&& conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/$(ch))
-	$(call IN_ENV,base) && conda install --override-channels --channel defaults --yes constructor
-	touch $@
-
--include $(sort $(wildcard local/*.mk))
+$(CONSTRUCTOR): $(MINICONDA_INSTALLER)
+	./$(MINICONDA_INSTALLER) -bf -p $(dir $(@D))
+	$(FROM_GROUND) \
+		$(foreach ch,main r,&& conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/$(ch)) \
+		&& conda install --override-channels --channel defaults --yes constructor
 
 $(MINICONDA_INSTALLER):
 	mkdir -p $(@D)
@@ -159,8 +153,8 @@ testbed.run: testbed.build $(INSTALLER)
 	docker run -ti --rm --mount type=bind,src=$$(pwd)/$(OUTPUT),dst=/ext testbed-$(or $(TEST_BASE),ubuntu)
 	
 clean:
-	test -d $(CONSTRUCTOR) && $(call IN_ENV,$(CONSTRUCTOR)) && constructor --clean || exit 0
-	rm -rf $(OUTPUT)
+	test -f $(CONSTRUCTOR) && $(FROM_GROUND) && constructor --clean || exit 0
+	rm -rf out
 
 veryclean: clean
 	rm -rf $(DIR_MINICONDA)

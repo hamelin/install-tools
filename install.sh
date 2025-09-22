@@ -1,4 +1,5 @@
 #!/bin/bash
+# 8192
 set -e
 
 
@@ -49,9 +50,7 @@ function die_no_environment() {{
 
 name_env=""
 path_install="."
-version="{version}"
-platform="{platform}"
-dir_installer="{dir_installer}"
+dir_artifacts="{dir_artifacts}"
 interactive=yes
 
 arg=""
@@ -159,9 +158,9 @@ if [ -n "$interactive" -a -n "$prompt" ]; then
 fi
 
 if [ -n "$must_install" ]; then
-    if [ -d "$dir_installer" ]; then
+    if [ -d "$dir_artifacts" ]; then
         $msg <<-ERRMSG
-This installer uses local subdirectory $dir_installer as a temporary
+This installer uses local subdirectory $dir_artifacts as a temporary
 place to store intermediate files critical to the installation process.
 It assumes this directory would not exist when it runs, but as it were,
 it does exist. Please rename or destroy this directory before running
@@ -170,16 +169,22 @@ ERRMSG
         exit 3
     fi
     echo "--- Extracting installation components ---"
-    trap "rm -rf $dir_installer" EXIT
-    tail -c +{after_header} "$0" | tar xf -
-    pip_cmd="pip install --no-index --find-links \"$dir_installer/wheels\" -r \"$dir_installer/requirements.txt\""
+    trap "rm -rf $dir_artifacts" EXIT
+    after_header=$(($(head -c 1048576 "$0" | sed -e '/^#--- END OF INSTALL SCRIPT ---/q' | wc -c) + 1))
+    if [ "$after_header" -gt 1000000 ]; then
+        echo "Cannot find the sentinel sentence that ends the install script." >&2
+        echo "Complain to the person who made this script. Loudly." >&2
+        exit 6
+    fi
+    tail -c +$after_header "$0" | tar xf -
+    pip_cmd="pip install --no-index --find-links \"$dir_artifacts/wheels\" -r \"$dir_artifacts/requirements.txt\""
     if grep -q 'conda' <<<"$must_install"; then
         echo "--- Set up the base for a Python computing environment ---"
         rm -rf "$path_install" || true
-        bash "$dir_installer/base-$version-$platform.sh" -b -p "$path_install" -f
-        cp "$dir_installer/startshell" "$path_install/bin/startshell"
+        bash "$dir_artifacts/install-python.sh" -b -p "$path_install" -f
+        cp "$dir_artifacts/startshell" "$path_install/bin/startshell"
         export PATH="$path_install/bin:$PATH"
-        python -c "import sys; print(sys.stdin.read().replace('<DIRINSTALL>', '''$(realpath $path_install)/bin'''))" <"$dir_installer/enable-python.sh" >"$path_install/bin/enable-python.sh"
+        python -c "import sys; print(sys.stdin.read().replace('<DIRINSTALL>', '''$(realpath $path_install)/bin'''))" <"$dir_artifacts/enable-python.sh" >"$path_install/bin/enable-python.sh"
     else
         python_version_here="$(python -c 'import sys; print(f"{{sys.version_info.major}}.{{sys.version_info.minor}}")')"
         if [ "$python_version_here" != "{python_version}" ]; then
@@ -200,7 +205,7 @@ else
     echo "--- Python environment is already complete ---"
 fi
 
-tasks=$(ls "$dir_installer"/tasks/*.sh | sort)
+tasks=$(ls "$dir_artifacts"/tasks/*.sh | sort)
 num_tasks=$(wc -w <<<"$tasks")
 echo "--- Post-install tasks ---"
 i=0
@@ -250,3 +255,4 @@ cat <<EPILOG_BOTTOM
 EPILOG_BOTTOM
 
 exit 0
+#--- END OF INSTALL SCRIPT ---
