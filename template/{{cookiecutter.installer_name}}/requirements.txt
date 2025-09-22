@@ -1,0 +1,18 @@
+# Edit this to fit your needs. The Vector Toolkit is included here, as well
+# as other packages generally used alongside it.
+
+timc-vector-toolkit
+
+# Jupyter Lab as interface.
+ipywidgets
+jupyterlab
+tqdm
+
+# Basic tabular data exploration.
+pandas
+pyarrow
+
+# Essential plotting and visualization.
+matplotlib
+ipympl
+seaborn
