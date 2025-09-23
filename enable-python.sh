@@ -1,0 +1,2 @@
+PATH="<DIRINSTALL>:$PATH"
+export PATH

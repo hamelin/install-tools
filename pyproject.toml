@@ -1,6 +1,6 @@
 [project]
 name = "timc-vector-toolkit"
-version = "20250916"
+version = "20250919"
 description = "Ensemble package for all Tutte Institute librairies involved in data vectorization, dimension reduction, clustering and exploratory visualization"
 readme = "src/timc_vector_toolkit/_readme.md"
 authors = [
@@ -22,5 +22,5 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.8.18"]
+build-backend = "uv_build"

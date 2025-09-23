@@ -1,0 +1,20 @@
+channels:
+  # You can discard defaults if you would rather use Python builds from Conda
+  # Forge. In turn, you can discard conda-forge if you don't care about Conda's
+  # C/C++ toolchain and trust the native one.
+  - defaults
+  - conda-forge
+
+dependencies:
+  # These are essential! Edit {{cookiecutter.installer_name}}/python_version to
+  # change the Python version.
+  - python={python_version}
+  - pip
+  - setuptools
+  - setuptools-rust
+  - wheel
+
+  # Optional, if you don't want to rely on the native C/C++ toolchain deployed
+  # on the machine where the installer is produced (in principle, no C/C++
+  # toolchain is needed on the installation target machines).
+  - compilers

@@ -5,6 +5,13 @@ packages.
 
 Learn more at <https://github.com/TutteInstitute>
 
+***IMPORTANT***: this package includes the libraries described below as
+dependencies without upper-bounding their versions.
+As such, newer versions of the package are mainly produced when editing
+the toolkit roster, and not necessarily when new versions of
+its dependencies are released. Thus, do not mistake the age of this
+package for dereliction.
+
 
 ----------------------
 Vector space embedding
