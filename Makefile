@@ -55,7 +55,7 @@ docker.clean:
 	docker images --format '{{.Repository}}:{{.Tag}}' | grep 'tutteinstitute/vector_toolkit' | xargs --max-args=1 --no-run-if-empty docker image rm
 
 
-# --- Offline installer ------------------------------------------------------
+# --- Offline installers -----------------------------------------------------
 
 MINICONDA = Miniconda3-latest-$(shell uname -s)-$(shell uname -m).sh
 DIR_MINICONDA = miniconda

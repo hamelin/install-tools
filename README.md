@@ -63,14 +63,14 @@ Remark that the following example includes a Conda package that brings up a gene
 ```sh
 conda create -n timc-tools python=3.13 pip conda-forge::compilers
 conda activate timc-tools
-pip install -r exploration.txt
+pip install timc-vector-toolkit
 ```
 
 Using [uv](https://docs.astral.sh/uv/) to start [Jupyter Lab](https://jupyter.org/)
 with a Python kernel that includes Tutte Institute tools.
 
 ```sh
-uv run --with-requirements exploration.txt --with jupyterlab jupyter lab
+uv run --with timc-vector-toolkit --with jupyterlab jupyter lab
 ```
 
 uv's excellent package and environment caching avoids managing an environment explicitly on the side of the code development.
@@ -79,24 +79,34 @@ uv's excellent package and environment caching avoids managing an environment ex
 ## Using a Docker image
 
 This repository includes a [Dockerfile](Dockerfile)
-to generate a pair of Docker images published on [Docker Hub](https://hub.docker.com/u/tutteinstitute).
+to generate a Docker image published on [Docker Hub](https://hub.docker.com/u/tutteinstitute).
+The image, named `tutteinstitute/vector-toolkit`,
+is based on the latest Ubuntu LTS release
+and its native Python 3 distribution.
+We set up an environment that includes package `timc-vector-toolkit`.
+Tags to this image reflect the time they were produced.
+The image is presumed to be used as a base for further application packaging.
+For example, one may augment this image to build an image that hosts Jupyter Lab
+through an unprivileged user:
 
-1. `tutteinstitute/data-science` is a batteries-included image hosting a Python distribution including the data exploration libraries published by the institute, as well as the favorite tools of the data scientists that work in the Tutte Institute. It may be used to launch regular Python scripts, as well as [IPython](https://ipython.readthedocs.io/en/stable/), [Jupyter](https://jupyter.org/) Lab/Notebook and [Marimo](https://marimo.io/).
-1. `tutteinstitute/data-exploration` is a minimal image hosting a Python distribution with only the tools from [exploration.txt](exploration.txt) (and their dependencies) deployed. It is best used as a base for folks to build their own images, appending the installation of their favorite tools.
+```dockerfile
+FROM tutteinstitute/vector-toolkit:latest
+RUN pip install jupyterlab ipywidgets matplotlib ipympl seaborn
+RUN adduser --disabled-password --comment "" user
+WORKDIR /home/user
+USER user
+EXPOSE 8888
+ENTRYPOINT ["/timc/bin/jupyter", "lab", "--port", "8888", "--ip", "0.0.0.0", "--notebook-dir", "/notebooks"]
+```
 
-Both images deploy the Python environment under an unprivileged account named `user`.
-The `HOME` environment variable is set `/home/user`,
-and the `PATH` environment variable is made to include `/home/user/timc/bin`,
-as the parent directory `/home/user/timc` contains the Python distribution.
-This user account is made to be writable by all users,
-so that distinct host users
-(determined through the `-u/--user` option of `docker run`)
-can change the Python distribution as they wish.
+Running this image into a container,
+one minds forwarding a port to 8888,
+and mounting a universally writable volume to `/notebooks`.
 
 ### Requirements
 
 1. Ability to run [Docker](https://www.docker.com/)
-1. Either access to [Docker Hub](https://hub.docker.com/) on the Internet, or have configuration to access an image repository index that mirrors the Tutte Institute images
+1. Either access to [Docker Hub](https://hub.docker.com/) on the Internet, or have configuration to access an image repository index that mirrors `tutteinstitute/vector_toolkit` tags
 
 
 ### Examples
