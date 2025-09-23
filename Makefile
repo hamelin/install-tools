@@ -1,4 +1,3 @@
-include config.mk
 SHELL = /bin/bash
 
 ROOT_PKG = timc_vector_toolkit
