@@ -1,61 +1,15 @@
 SHELL = /bin/bash
+ALL_INSTALLERS = $(patsubst %/python_version,out/%.sh,$(wildcard */python_version))
 
 
 .PHONY: help
 help:
-	@cat help-makefile.txt
+	@echo 'Buildable installer targets: '
+	@echo
+	@echo $(ALL_INSTALLERS) | xargs -n1 | awk '{printf("    %s\n", $$1)}'
+	@echo
+	@echo You may also invoke _make all_ to build all of them.
 
-
-# --- timc-vector-toolkit Python package -------------------------------------
-
-ROOT_PKG = timc_vector_toolkit
-DIST = $(addprefix dist/,$(1))
-PKG_VERSION = $(shell uv version --short)
-PKG = $(call DIST,$(ROOT_PKG)-$(PKG_VERSION).tar.gz $(ROOT_PKG)-$(PKG_VERSION)-py3-none-any.whl)
-PUBLISHED = $(addsuffix .published,$(1))
-PKG_PUBLISHED = $(call PUBLISHED,$(PKG))
-
-.PHONY: pkg.build
-pkg.build: $(PKG)
-
-$(PKG) &: $(wildcard src/timc_vector_toolkit/*)
-	git diff --exit-code pyproject.toml || uv lock --upgrade
-	uv build
-
-.PHONY: pkg.publish
-pkg.publish: $(PKG_PUBLISHED)
-
-$(PKG_PUBLISHED) &: $(PKG)
-	@test -n "$$UV_PUBLISH_TOKEN" || (echo "UV_PUBLISH_TOKEN undefined, so cannot publish."; false)
-	uv publish $(PKG)
-	touch $(PKG_PUBLISHED)
-
-.PHONY: pkg.clean
-pkg.clean:
-	rm -rf dist
-
-
-# --- Docker image -----------------------------------------------------------
-
-IMAGE_VERSION ?= $(shell date +%Y%m%d)
-PYTHON_VERSION ?= 3.13  # Latest stable Python where TIMC tools work without issue.
-
-.PHONY: docker.build
-docker.build:
-	docker build . \
-		--tag tutteinstitute/vector-toolkit:$(IMAGE_VERSION)
-	docker tag tutteinstitute/vector-toolkit:$(IMAGE_VERSION) tutteinstitute/vector-toolkit:latest
-
-.PHONY: docker.publish
-docker.publish: docker.build
-	docker push --all-tags tutteinstitute/vector-toolkit
-
-.PHONY: docker.clean
-docker.clean:
-	docker images --format '{{.Repository}}:{{.Tag}}' | grep 'tutteinstitute/vector_toolkit' | xargs --max-args=1 --no-run-if-empty docker image rm
-
-
-# --- Offline installers -----------------------------------------------------
 
 MINICONDA = Miniconda3-latest-$(shell uname -s)-$(shell uname -m).sh
 DIR_MINICONDA = miniconda
@@ -71,6 +25,9 @@ BOOTSTRAP_PIP = $(call BOOTSTRAP,$(1))/bin/pip
 DIR_ARTIFACTS = out/$(1)-artifacts
 COMMON_ARTIFACTS = $(addprefix $(call DIR_ARTIFACTS,$(1))/,requirements.txt startshell enable-python.sh install-python.sh)
 
+.PHONY: all
+all: $(ALL_INSTALLERS)
+	
 out/%.sh: out/%-install.sh $(call COMMON_ARTIFACTS,%) out/%.wheels out/%.extras
 	cat $< <(cd out && tar cf - $*-artifacts) >$@
 	chmod +x $@
