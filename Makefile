@@ -1,9 +1,14 @@
 SHELL = /bin/bash
+ALL_INSTALLERS = $(patsubst %/python_version,out/%.sh,$(wildcard */python_version))
 
 
 .PHONY: help
 help:
-	@cat help-makefile.txt
+	@echo 'Buildable installer targets: '
+	@echo
+	@echo $(ALL_INSTALLERS) | xargs -n1 | awk '{printf("    %s\n", $$1)}'
+	@echo
+	@echo You may also invoke _make all_ to build all of them.
 
 
 MINICONDA = Miniconda3-latest-$(shell uname -s)-$(shell uname -m).sh
@@ -20,6 +25,9 @@ BOOTSTRAP_PIP = $(call BOOTSTRAP,$(1))/bin/pip
 DIR_ARTIFACTS = out/$(1)-artifacts
 COMMON_ARTIFACTS = $(addprefix $(call DIR_ARTIFACTS,$(1))/,requirements.txt startshell enable-python.sh install-python.sh)
 
+.PHONY: all
+all: $(ALL_INSTALLERS)
+	
 out/%.sh: out/%-install.sh $(call COMMON_ARTIFACTS,%) out/%.wheels out/%.extras
 	cat $< <(cd out && tar cf - $*-artifacts) >$@
 	chmod +x $@
