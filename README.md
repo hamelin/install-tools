@@ -19,7 +19,7 @@ Shortcuts to the various installation and deployment procedures:
 
 - [Installing from PyPI (or a mirror)](#installing-from-pypi-or-a-mirror)
 - [Using a Docker image](#using-a-docker-image)
-- [Deploying on modern UNIX hosts in an air-gapped network](#deploying-within-an-air-gapped-network)
+- [Deploying on modern UNIX hosts in an air-gapped network](#deploying-on-modern-unix-hosts-in-an-air-gapped-network)
 
 
 ## Installing from PyPI (or a mirror)
@@ -143,22 +143,29 @@ docker run --rm --publish 5000:5000 myapp
 
 ## Deploying on modern UNIX hosts in an air-gapped network
 
-This repository comprises tools to build a self-contained Bash script that deploys a full Python distribution.
-This distribution includes the tools enumerated in [`exploration.txt`](exploration.txt) and their dependency tree.
+This repository comprises tools to build a self-contained Bash script that deploys an _all-dressed_ full Python distribution.
+This distribution is designed to include `timc-vector-toolkit` and its dependencies,
+but it can be customized to one's specific needs.
+It can also include additional non-Python artifacts,
+such as model files or web resources.
 
 ### Requirements
 
+Both for building the installer **and** deploying the distribution:
+
 1. Either a GLibC-based GNU/Linux system **OR** a MacOS system
-    * If you don't know whether your GNU/Linux system is based on GLibC, it likely is. The requirement enables using [Conda](https://learn.microsoft.com/en-us/windows/wsl/about). GNU/Linux distributions known not work are those based on [musl libc](https://musl.libc.org/), including [Alpine Linux](https://alpinelinux.org/).
+    * If you don't know whether your GNU/Linux system is based on GLibC, it likely is. The requirement enables using [Conda](https://learn.microsoft.com/en-us/windows/wsl/about). GNU/Linux distributions known not to work are those based on [musl libc](https://musl.libc.org/), including [Alpine Linux](https://alpinelinux.org/).
+    * A MacOS host system will build a distribution that can deploy on a MacOS target system; a GNU/Linux host system will build a distribution that can deploy on most GLibC-based GNU/Linux systems. Perform target tests ahead of committing much work into building the perfect installer.
 1. Common UNIX utilities (such as included in [GNU Coreutils](https://www.gnu.org/software/coreutils/))
 
 For the installer build step, these extra requirements should also be met:
 
+3. [Cookiecutter](https://cookiecutter.readthedocs.io/en/stable/)
 3. [GNU Make](https://www.gnu.org/software/make/)
 4. A C/C++ compilation toolchain
 5. Full Internet access is expected
 
-Remark that the installation building and deployment tools have only been tested on
+The installation building and deployment tools have only been tested on
 Ubuntu Linux, MacOS and [WSL2/Ubuntu](https://learn.microsoft.com/en-us/windows/wsl/about) systems running on Intel x86-64 hardware.
 Other GLibC-based Linux systems are supported on Intel x86-64 hardware;
 alternative hardware platforms ARM64 (aarch64), IBM S390 and PowerPC 64 LE are likely to work, but are not supported.
@@ -168,73 +175,119 @@ but it has not been tested by the author and it is not supported.
 \*BSD platforms are also excluded from support,
 as no [Conda binary](https://repo.anaconda.com/miniconda/) is being distributed for them.
 
-### Setup and deployment
+### Step 1: preparing the distribution
 
-Having cloned this repository, `cd` into your local copy and invoke
+This repository is organized to host multiple distribution installer _projects._
+Each such project is composed in its own subdirectory.
+An [example distribution project](example) is provided for examining and experimentation.
+
+One's own project is initiated by running
 
 ```sh
-make
+cookiecutter template
 ```
 
-Provided everything works smoothly, you end up with a (quite large!) installation Bash script at path
+The first question sets the name of the installer to produce through this project,
+which will be appended with `.sh`.
+For instance, using default value `my-installer` would,
+as output to [building the installer](#step-2-building-the-installer),
+For instance, using default value `my-installer` would,
+yield a file named `out/my-installer.sh`.
+The second question sets the minor Python version that would get distributed through the installer.
+Choose a version that can run all the package dependencies you want deployed with your distribution.
 
+Once all questions are answered, the project named like your answer to question 1 is created.
+It contains the following files:
+
+**`python_version`**
+
+Specifies the minor Python version to base the distribution on.
+Change it here rather than have to edit it throughout other files.
+
+**`bootstrap.yaml`**
+
+Specifies a Conda environment that will be used to put together the Python installer.
+This rarely needs to be edited.
+
+**`construct.yaml`**
+
+This is a [Conda Constructor specification](https://conda.github.io/constructor/construct-yaml/)
+used to put together the Python installer out of a set of Conda packages.
+Under the `specs` section,
+add any further Conda package you would like installed as part of your target distribution.
+Other packages will be sourced out of the [Python Package Index](https://pypi.org/).
+
+**`requirements.txt`**
+
+This is the main file to edit the essential contents of the distribution your want deployed on your target systems.
+Per [documentation](https://pip.pypa.io/en/stable/reference/requirements-file-format/),
+you may specify version bounds for each package you include.
+
+**`extras.mk`** and **`tasks`**
+
+`extras.mk` is a small bit of [Makefile](https://www.gnu.org/software/make/manual/html_node/Simple-Makefile.html)
+that specifies rules for gathering _extras_,
+resources that should be bundled into the installers.
+These can be model weights to downloads,
+datasets,
+web resources,
+scripts &mdash; anything one can put in files.
+At deployment time,
+these extras are deployed on the target host by running the scripts under the `tasks` subdirectory in alphanumerical order.
+Remark that the installer produced by this project is expected to be run with a user's own level of privileges,
+which may or may not be root.
+Determine how the installer will be used on the target network when setting up the list of install tasks,
+so as to ensure success.
+
+A header comment to `extras.mk` provides further Makefile variable definitions and details to guide and facilitate the implementation of extras gathering tasks.
+
+### Step 2: building the installer
+
+To build the installer, we use GNU Make.
+Given project `my-installer`,
+the installer script is produced by running
+
+```sh
+make out/my-installer.sh
 ```
-out/timc-installer-<VERSION>-py<PYTHON VERSION>-<SYSTEM NAME>-<HARDWARE PLATFORM>.sh
-```
 
-The **SYSTEM NAME** and **HARDWARE PLATFORM** are determined by the system the installer is built on.
-Thus, it is not possible to cross-build a MacOS installer on a GNU/Linux-x86_64 host.
-However, one can change the Python version to another one they would rather target by editing file `config.mk`.
-Change the line of the form
+You may still edit the constituent files of the project afterwards.
+Running GNU Make again will rebuild the installer incrementally.
+Remark, once again, that the host system and the target system are expected to match;
+the closer they are, the better the odds the installer will work.
+No cross-building of MacOS installers can be done from a GNU/Linux host,
+or vice-versa.
 
-```
-PYTHON_VERSION = 3.13
-```
+### Step 3: deploying the distribution on target systems
 
-for an alternative value.
-Please remark that,
-as a whole,
-the Tutte Institute tools are targeted to the minimum Python 3.9 version.
-Anything lower is not supported.
-In addition, the top supported Python version,
-at any moment,
-is the default value of `PYTHON_VERSION` in file `config.mk` on the `main` branch of this repository.
-
-Bring this script over to each host of the air-gapped network where you mean to run the installer
+Bring the installer script over to each host of the air-gapped network where you mean to run it
 (a shared network filesystem such as NFS works as well).
-It can be run by any unprivileged user or as root,
-enabling further downstream customization of the Python distribution and environment
-(assuming the air-gapped network includes a [simple package repository](https://peps.python.org/pep-0503/)
-or some other distribution infrastructure).
+It can be run by any unprivileged user or as root.
 Using the `-h` flag shows some terse documentation:
 
 ```
-This self-contained script sets up a Python computing environment that
-includes common data science and data engineering tools, as well as the
-libraries developed by the Tutte Institute for unsupervised learning
-and data exploration.
+This self-contained script sets up a Python computing environment that includes
+common data science and data engineering tools, as well as the libraries developed
+by the Tutte Institute for unsupervised learning and data exploration.
 
 Usage:
-    ./out/timc-installer-20250508-py3.13-Linux-x86_64.sh [-h|--help]
-    [-n name] [-p path] [-q]
+    $0 [-h|--help] [-n name] [-p path] [-q]
 
 Options:
     -h, --help
         Prints out this help and exits.
     -n name
-        If the system has Conda set up, these tools will be installed
-        as the named Conda environment. Do not use -p if you use -n.
+        If the system has Conda set up, these tools will be installed as the named
+        Conda environment. Do not use -p if you use -n.
     -p path
-        Sets the path to the directory where to set up the computing
-        environment, or where such an environment has been previously
-        set up. Do not use -n if you use -p.
+        Sets the path to the directory where to set up the computing environment,
+        or where such an environment has been previously set up. Do not use -n if you
+        use -p.
     -q
-        Skips any interactive confirmation, proceeding with the default
-        answer.
+        Skips any interactive confirmation, proceeding with the default answer.
 
-Without any of the -n or -p options, the installer simply deploys the
-Tutte Institute tools in the current Conda environment or Python virtual
-environment (venv).
+Without any of the -n or -p options, the installer simply deploys the Tutte Institute
+tools in the current Conda environment or Python virtual environment (venv).
 ```
 
 There are three ways in which the installation can be run.
@@ -247,7 +300,7 @@ There are three ways in which the installation can be run.
 Finally, installation tasks are, by default, confirmed interactively in the shell.
 To bypass this confirmation and just carry on in any case, use option `-q`.
 
-### Using the installed Python distribution
+### Step 4: using the installed Python distribution
 
 Depending on the installation type,
 one either gets a Python virtual environment or a Conda environment.
@@ -313,87 +366,3 @@ path/to/environment/bin/startshell
 ```
 
 so as to have a shell duly set up for using the installed Python distribution and tools.
-
-### Installer customization
-
-When deploying the full Python distribution
-(options `-n` or `-p`),
-the offline installer performs a sequence of two tasks:
-
-1. Install the basic Python distribution;
-2. deploy the set of pre-compiled _wheels_ corresponding to the Tutte Institute tools and their dependencies.
-
-Only the latter of these two steps is done when deploying in a pre-existing Python environment
-(not using `-n` nor `-p`).
-Given that the installer is typically used in an air-gapped computing environment,
-it may be useful to _can_ further resources in the installer for install-time deployment.
-A salient example is that the [interactive HTML plots](https://datamapplot.readthedocs.io/en/latest/interactive_intro.html)
-generated by [datamapplot](https://github.com/TutteInstitute/datamapplot)
-require some font and Javascript resources that are typically gathered from web services when the plot is rendered in a browser.
-However, those services are not available in a typical air-gapped environment.
-datamapplot thus enables [caching](https://datamapplot.readthedocs.io/en/latest/offline_mode.html#Collecting-the-cache)
-these resources so they may be [inlined](https://datamapplot.readthedocs.io/en/latest/offline_mode.html#Producing-a-data-map-to-use-offline)
-when the HTML plot is produced.
-Any number of such **post-install tasks** can be prepared in the installer construction phase,
-and executed once steps 1 and 2 above have completed successfully.
-
-As such, any task one would like to append to the installation setup and deployment process is composed of two files:
-a Makefile that gets pulled amongst the one building the installer,
-and a Bourne shell script that gets [*sourced*](https://linuxize.com/post/bash-source-command/) after the environment is deployed.
-These files are processed in lexicographic order,
-so one can prepend their names with a number to control the order of preparation and execution of their tasks.
-Any one of these two files is optional.
-Indeed,
-one can extend the behaviour of the installer by altering the set of files already collected to be part of the installer by having only a Makefile,
-and no post-installation task script.
-Alternatively,
-such a script can be added to the set of post-install tasks without it relying on any ad hoc artifact that would be built by some Make rule.
-Finally,
-the Makefile and post-install script do not even have to share the same base name.
-This is merely a readability convention.
-
-#### The preparation Makefile
-
-Let's look at the datamapplot resource cache collection and installation as an example.
-The setup part is [`local/500-offline-cache.mk`](local/500-offline-cache.mk)
-(the `.mk` extension is mandatory).
-The goal of this Makefile is to set up artifacts that must be included into the installer,
-known as *goodies*.
-For that, the Makefile must do two things:
-
-1. Append the paths to ad hoc goodies to the `GOODIES` Make variable. To be included in the installer, any goodie must have its path prepended with `$(GOODIE)`.
-2. Add a target that will produce the goodie.
-
-As part of the construction of the installer,
-a _target_ environment is built identical to the one deployed when the installer is run.
-We can ensure the presence of this target environment in order to use it to prepare installation artifacts
-by depending on target `$(TARGET)/ready`.
-One can then run a command under this environment by invoking `$(call IN_ENV,$(TARGET))` ahead of their command.
-So looking at [`local/500-offline-cache.mk`](local/500-offline-cache.mk), all these details come together:
-
-- The goodie's path is `$(GOODIE)/font-js-cache.zip`.
-- This path is appended to `GOODIES`.
-- Producing the cache depends on `$(TARGET)/ready`, since it requires the deployment of datamapplot to prepare the cache.
-- The cache is prepared by invoking utility `dmp_offline_cache`, prepended with the environment setup macro `$(call IN_ENV,$(TARGET))`.
-
-Remark that the installation task shell script does not have to be explicitly included by the Makefile:
-all `.sh` files present in the `local/` subdirectory get pulled into the installer.
-
-#### The post-install script
-
-Once the installer completes the deployment of the Python environment,
-it [*activates*](#activation) it, and **sources** all the post-install script in lexicographic order.
-Sourcing, as opposed to subprocess spawning,
-enables sharing variables of the main install script.
-The more interesting variables:
-
-| Variable        | Purpose |
-|-----------------|---------|
-| `name_env`      | If the user used the `-n` option, this is the name of the environment provided. Otherwise, it is empty. |
-| `path_install`  | Directory of the environment being set up given with option `-p`, or determined from option `-n`. If neither option was used, this variable is equal to `"."` |
-| `version`       | Version of this tool distribution embedded in the installer. |
-| `platform`      | Name of the operating system and hardware platform identifier, separated by a `-`. Example: `Linux-x86_64` |
-| `dir_installer` | Directory where installer contents were unpacked to. All *goodies* can be found relative to this directory. |
-| `step`          | Enumerative label of the post-install task, taking into account the total number of such tasks. Example: `[2/3]` |
-
-Variables `$dir_installer` and `$step` are the only ones leveraged by [`local/500-offline-cache.sh`](local/500-offline-cache.sh).

@@ -1,11 +1,11 @@
-FROM ubuntu:24.04
+FROM python:3.13-slim
 
 # Common settings for building from Ubuntu images.
-SHELL ["/bin/bash", "-c"]
-ENV DEBIAN_FRONTEND=noninteractive
+# SHELL ["/bin/bash", "-c"]
+# ENV DEBIAN_FRONTEND=noninteractive
 
 # Need Python 3 and a C/C++ toolchain.
-RUN apt-get update && apt-get install --yes python-is-python3 python3-pip python3-full build-essential
+# RUN apt-get update && apt-get install --yes python-is-python3 python3-pip python3-full build-essential
 
 # Make the environment.
 RUN python -m venv /timc
