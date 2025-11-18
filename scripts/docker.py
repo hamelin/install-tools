@@ -80,7 +80,7 @@ def build(version: str, incremental: bool) -> None:
     sp.run(args).check_returncode()
     if confirm(f"Update latest tag to {version}?", None):
         sp.run(
-            ["docker", f"{IMAGE}:{version}", f"{IMAGE}:latest"]
+            ["docker", "tag", f"{IMAGE}:{version}", f"{IMAGE}:latest"]
         ).check_returncode()
     else:
         print("Ok, skip updating latest", file=sys.stderr)
