@@ -14,4 +14,4 @@ RUN python -m venv /timc
 ENV VIRTUAL_ENV=/timc PATH=/timc/bin:$PATH
 
 # Populate the environment.
-RUN pip install setuptools setuptools-rust "timc-vector-toolkit"
+RUN pip install --only-binary hdbscan setuptools setuptools-rust "timc-vector-toolkit"
