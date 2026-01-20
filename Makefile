@@ -88,7 +88,7 @@ $(call DIR_ARTIFACTS,%)/install-python.sh: %/construct.yaml %/python_version $(C
 	$(call DIR_ARTIFACTS,%)/startshell \
 	$(call DIR_ARTIFACTS,%)/enable-python.sh \
 	out/%.wheels \
-	$(call BOOTSTRAP_PIP,%)
+	$(call BOOTSTRAP_PIP,%) \
 	$(call DIR_ARTIFACTS,%)/install-python.sh
 
 $(CONSTRUCTOR): $(MINICONDA_INSTALLER)
